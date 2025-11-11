@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<ar:ApplicationResponse xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2" xmlns:ar="urn:oasis:names:specification:ubl:schema:xsd:ApplicationResponse-2"><ext:UBLExtensions><ext:UBLExtension><ext:ExtensionContent><Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+<SignedInfo>
+  <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#WithComments"/>
+  <SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha512"/>
+  <Reference URI="">
+    <Transforms>
+      <Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+      <Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#WithComments"/>
+    </Transforms>
+    <DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>
+    <DigestValue>NuCUANQ87UhaOwuzrmx/UVEhMoo=</DigestValue>
+  </Reference>
+</SignedInfo>
+    <SignatureValue>M0PXx0X1JAee7V5G43Sl5Vx8K/YFvZUbCOHmxTIXocEsM2VCZYFk985x0qrVAch2ZTKfdlWwVeYz6FFmkAQaLoDnqKFRzmiae7+IG4ZYJYk9wqLCzTbH8UfDkoVnupNmrVaCc156spwr9vwnORGne9gbQCcRRVtLkl207TR/imZ1BiKKNlKb2hW18Es5UL+t/CrwaT1mk/HF8xh1IS8v35wuP2wRBy0jfn2t5lLPwGMckelddYxY67oZmxkOu9ioJ9Iex82p1us+4QRZoTfQqug1Row6dMFeyq/lRlJVLu2YVm5SA55XhOiDpzM3+d/jaryj+fJdFAWf2PrjT1n2NA==</SignatureValue><KeyInfo><X509Data><X509Certificate>MIIFrjCCBJagAwIBAgIIf9Td7Evg0UswDQYJKoZIhvcNAQELBQAwRjEkMCIGA1UEAwwbTGxhbWEucGUgU0hBMjU2IFN0YW5kYXJkIENBMREwDwYDVQQKDAhMTEFNQS5QRTELMAkGA1UEBhMCUEUwHhcNMjQwODA5MTYxNTM5WhcNMjcwODA5MTYxNTAwWjCCAVQxKzApBgNVBAkMIkFWLiBHQVJDSUxBU08gREUgTEEgVkVHQSBOUk8uIDE0NzIxIjAgBgkqhkiG9w0BCQEWE3JtZXphZ0BzdW5hdC5nb2IucGUxQTA/BgNVBAMMOFNVUEVSSU5ULiBOQUMuIERFIEFEVUFOQVMgWSBERSBBRE1JTklTVFJBQ0lPTiBUUklCVVRBUklBMRwwGgYDVQQLDBNBR0VOVEUgQVVUT01BVElaQURPMS4wLAYDVQQLDCVWYWxpZGFkbyBwb3IgQUJDIElERU5USURBRCBESUdJVEFMIEVSMVQwUgYDVQQKDEtTVVBFUklOVEVOREVOQ0lBIE5BQ0lPTkFMIERFIEFEVUFOQVMgWSBERSBBRE1JTklTVFJBQ0lPTiBUUklCVVRBUklBIC0gU1VOQVQxDTALBgNVBAcMBExJTUExCzAJBgNVBAYTAlBFMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1apapJOwMj9tBpgKAgjRwIloUk+xwvQZxc0s/4yl4mDSrc/F/PKZ3QBmKb43fFwivqPUvsr68fQTfyLKM14B+xXwlbQ/yh3+87sMyulLhOPmtSOU0PE8Rw0PsmGVxf1L0HPAPc3Gvuhq4Z9Dx5ByED6s+VppDmncvctlJ/NrzYZCk9H91OinTTPVZrDtbmqnOYra8PaTRoCI9Fmndeo9Oo7esM7KVX9f53NEd/mNQqzAOrgSXthFuBZN7zOsGxJ4ZGrVzHSlCH/jFLgObEizHrqisgL1cxKj8QvbGLUjNtUuTvR5IY6hwRLCxbliTa84BN10E0jC7hhAnnuEIAFJiwIDAQABo4IBjjCCAYowDAYDVR0TAQH/BAIwADAfBgNVHSMEGDAWgBRdiFut62X7/mii5NlvPVdyou8rmTBnBggrBgEFBQcBAQRbMFkwNQYIKwYBBQUHMAKGKWh0dHA6Ly9jcnQubGxhbWEucGUvbGxhbWFwZXN0YW5kYXJkY2EuY2VyMCAGCCsGAQUFBzABhhRodHRwOi8vb2NzcC5sbGFtYS5wZTAeBgNVHREEFzAVgRNybWV6YWdAc3VuYXQuZ29iLnBlMEYGA1UdIAQ/MD0wOwYNKwYBBAGDl3cAAQADATAqMCgGCCsGAQUFBwIBFhxodHRwczovL2xsYW1hLnBlL3JlcG9zaXRvcnkvMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEFBQcDBDA6BgNVHR8EMzAxMC+gLaArhilodHRwOi8vY3JsLmxsYW1hLnBlL2xsYW1hcGVzdGFuZGFyZGNhLmNybDAdBgNVHQ4EFgQUuRkPCyM25gAu5se9GraC/UO07X8wDgYDVR0PAQH/BAQDAgbAMA0GCSqGSIb3DQEBCwUAA4IBAQBC8+YM7moZ7bKYCS+VzJ8wzydSboWeNuAs2CfkhI8hRMQr1r5WZg8pDlroCslF/r6SjbkrjuDHcGKJTM2riGEjlOD4CLU9VjOP7Td6CIZyJRLaz63pZYOwE0H0weG/PvYpopDZzJ6AXYzZxwYkJ03/x/vwaCss9ZvmsEn2E1xtGbnMe9MEsg8oF0ul3uRn8Qy5gF37fM7YKuF/r4iBS5uSvBcA5J2FbI/PQls7OgICDyb3W16GeluaT9krY5wQxilJSpGVU++nv5NzmRHkquH3ic2It/KP6MZ9X2tfg6FhpF6JaUz7MSY+J0KnDDcfJlhxgnkgoT5tV3Sr6z5PpQH6</X509Certificate><X509IssuerSerial><X509IssuerName>C=PE, O=LLAMA.PE, CN=Llama.pe SHA256 Standard CA</X509IssuerName><X509SerialNumber>9211231144834552139</X509SerialNumber></X509IssuerSerial></X509Data></KeyInfo><Proposito>Cumple proposito</Proposito><Revocacion>Cumple revocacion</Revocacion><TSL>Cumple tsl</TSL><Expiracion>No ha expirado</Expiracion></Signature></ext:ExtensionContent></ext:UBLExtension></ext:UBLExtensions>
+	<cbc:UBLVersionID>2.0</cbc:UBLVersionID>
+	<cbc:CustomizationID>1.0</cbc:CustomizationID>
+	<cbc:ID><![CDATA[4fdb6eb6-9f90-4281-9988-ae575e66cf76]]></cbc:ID>
+	<cbc:IssueDate>2025-10-27</cbc:IssueDate>
+	<cbc:IssueTime>15:39:00.150</cbc:IssueTime>
+	<cbc:ResponseDate>2025-10-27</cbc:ResponseDate>
+	<cbc:ResponseTime>15:39:00</cbc:ResponseTime>
+	<cac:Signature>
+		<cbc:ID><![CDATA[SignSUNAT]]></cbc:ID>
+		<cac:SignatoryParty>
+			<cac:PartyIdentification>
+				<cbc:ID><![CDATA[20131312955]]></cbc:ID>
+			</cac:PartyIdentification>
+			<cac:PartyName>
+				<cbc:Name><![CDATA[SUNAT]]></cbc:Name>
+			</cac:PartyName>
+		</cac:SignatoryParty>
+		<cac:DigitalSignatureAttachment>
+			<cac:ExternalReference>
+				<cbc:URI>#SignSUNAT</cbc:URI>
+			</cac:ExternalReference>
+		</cac:DigitalSignatureAttachment>
+	</cac:Signature>
+				<cbc:Note><![CDATA[4393 - El Número de Registro de MTC del transportista no se encuentra en las bases consultadas]]></cbc:Note>
+	<cac:SenderParty>
+		<cac:PartyIdentification>
+			<cbc:ID><![CDATA[20131312955]]></cbc:ID>
+		</cac:PartyIdentification>
+	</cac:SenderParty>
+	<cac:ReceiverParty>
+		<cac:PartyIdentification>
+			<cbc:ID><![CDATA[20250406941]]></cbc:ID>
+		</cac:PartyIdentification>
+	</cac:ReceiverParty>
+	<cac:DocumentResponse>
+		<cac:Response>
+			<cbc:ReferenceID>T007-00006994</cbc:ReferenceID>
+				<cbc:ResponseCode>0</cbc:ResponseCode>
+				<cbc:Description><![CDATA[El Comprobante numero T007-00006994, ha sido aceptado]]></cbc:Description>
+		</cac:Response>
+		<cac:DocumentReference>
+			<cbc:ID><![CDATA[T007-00006994]]></cbc:ID>
+				<cbc:DocumentDescription>https://e-factura.sunat.gob.pe/v1/contribuyente/gre/comprobantes/descargaqr?hashqr=IsBCBX+cBEO7OjnNTrKtW7HPY6rgtxQ7NdzLdBEk1UfidZnXOyuVXGwG129J92GkTufDGr/3MgWCsK0gOEbR93qvmxc8tVxqgOV3AdTp8uU=</cbc:DocumentDescription>
+		</cac:DocumentReference>
+		<cac:RecipientParty>
+			<cac:PartyIdentification>
+				<cbc:ID><![CDATA[6-20606414561]]></cbc:ID>
+			</cac:PartyIdentification>
+		</cac:RecipientParty>
+	</cac:DocumentResponse>
+</ar:ApplicationResponse>
