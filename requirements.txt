@@ -1,2 +1,15 @@
 python-dotenv
 requests
+reportlab
+PyPDF2
+xmlrpc
+xml.etree.ElementTree
+datetime
+pathlib
+dotenv
+os
+sys
+os.path
+os.makedirs
+os.path.join
+os.path.exists

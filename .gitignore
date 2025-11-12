@@ -1,13 +1,74 @@
+# ============================================
+# CREDENCIALES Y DATOS SENSIBLES
+# ============================================
 .env
+.env.*
+*.env
 
-venv/
+# Datos descargados
+data/
+Prueba_*/
+temp/
+backups/
+*.zip
+*.7z
+
+# Unidad de red (no trackear)
+Y:/
+
+# ============================================
+# PYTHON
+# ============================================
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.pyw
-*.pyz
-*.pywz
-*.pyzw
-*.pyzwz
-*.pyzwzw
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# ============================================
+# LOGS
+# ============================================
+logs/
+*.log
+
+# ============================================
+# IDEs
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ============================================
+# SISTEMA OPERATIVO
+# ============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

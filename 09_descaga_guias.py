@@ -54,7 +54,7 @@ ultimo_dia = monthrange(AÑO, MES)[1]
 FECHA_INICIO = f"{AÑO}-{MES:02d}-01"
 FECHA_FIN = f"{AÑO}-{MES:02d}-{ultimo_dia}"
 
-BASE_PATH = r"C:\Users\jmontero\Desktop\GitHub Proyectos_AGV\descarga_masiva_Facturas_Guias\Prueba_Octubre\09_Guias_Remision"
+BASE_PATH = r"C:\Users\jmontero\Desktop\GitHub Proyectos_AGV\descarga_masiva_Facturas_Guias\Prueba_Octubre\09_Guias_Remision_V2"
 
 # Filtros específicos del usuario
 PICKING_TYPE_ID = 2
@@ -238,13 +238,54 @@ def buscar_reporte_eguia(uid, models):
 
 
 def generar_pdf_guia(uid, models, picking_id, reporte_nombre):
-    """Generar PDF de guía"""
+    """
+    Generar PDF de guía de remisión usando métodos compatibles con Odoo 16.
+    
+    Estrategia:
+    1. Intentar generar con _render (método estándar Odoo 16)
+    2. Si falla, buscar adjunto PDF generado automáticamente
+    3. Retornar PDF bytes o None con lista de errores
+    """
     errores = []
     
     if not reporte_nombre:
         return None, ["No se proporcionó nombre de reporte"]
     
-    # Intentar con _render_qweb_pdf
+    # MÉTODO 1: _render (Odoo 16 estándar via XML-RPC)
+    try:
+        result = models.execute_kw(
+            ODOO_DB, uid, ODOO_PASSWORD,
+            'ir.actions.report', '_render',
+            [reporte_nombre, [picking_id]]
+        )
+        if result:
+            # _render retorna tupla (pdf_bytes, format) o solo pdf_bytes
+            pdf_content = result[0] if isinstance(result, tuple) else result
+            if pdf_content:
+                return pdf_content, None
+    except Exception as e:
+        errores.append(f"_render: {str(e)[:100]}")
+    
+    # MÉTODO 2: Buscar adjunto PDF generado por el reporte
+    try:
+        adjuntos = models.execute_kw(
+            ODOO_DB, uid, ODOO_PASSWORD,
+            'ir.attachment', 'search_read',
+            [[
+                ('res_model', '=', 'stock.picking'),
+                ('res_id', '=', picking_id),
+                ('name', 'ilike', 'agr'),  # Filtro para reportes AGR
+                ('mimetype', '=', 'application/pdf')
+            ]],
+            {'fields': ['datas'], 'limit': 1, 'order': 'id desc'}
+        )
+        if adjuntos and adjuntos[0].get('datas'):
+            pdf_content = base64.b64decode(adjuntos[0]['datas'])
+            return pdf_content, None
+    except Exception as e:
+        errores.append(f"adjuntos_reporte: {str(e)[:100]}")
+    
+    # MÉTODO 3: Intentar con _render_qweb_pdf (para compatibilidad con versiones anteriores)
     try:
         result = models.execute_kw(
             ODOO_DB, uid, ODOO_PASSWORD,
@@ -255,31 +296,6 @@ def generar_pdf_guia(uid, models, picking_id, reporte_nombre):
             return result[0], None
     except Exception as e:
         errores.append(f"_render_qweb_pdf: {str(e)[:100]}")
-    
-    # Intentar con render_qweb_pdf
-    try:
-        result = models.execute_kw(
-            ODOO_DB, uid, ODOO_PASSWORD,
-            'ir.actions.report', 'render_qweb_pdf',
-            [reporte_nombre, [picking_id]]
-        )
-        if result and len(result) > 0 and result[0]:
-            return result[0], None
-    except Exception as e:
-        errores.append(f"render_qweb_pdf: {str(e)[:100]}")
-    
-    # Intentar método alternativo con report_action
-    try:
-        result = models.execute_kw(
-            ODOO_DB, uid, ODOO_PASSWORD,
-            'ir.actions.report', 'report_action',
-            [[picking_id]],
-            {'report_name': reporte_nombre}
-        )
-        if result and isinstance(result, dict):
-            return None, ["report_action retornó diccionario (modo interactivo)"]
-    except Exception as e:
-        errores.append(f"report_action: {str(e)[:100]}")
     
     return None, errores
 
@@ -330,11 +346,11 @@ def descargar_guias(uid, models, guias):
     print("📥 DESCARGANDO GUÍAS DE REMISIÓN")
     print(f"{'='*70}")
     print("💡 Estrategia:")
-    print("   1. Buscar PDF 'e-Guía de Remisión AGR' en adjuntos")
-    print("   2. Si no existe, intentar generarlo dinámicamente")
-    print("   3. Descargar XMLs adjuntos")
+    print("   1. GENERAR PDF dinámicamente usando reporte AGR (preferido)")
+    print("   2. Si falla, buscar PDF existente en adjuntos (fallback)")
+    print("   3. Descargar XMLs adjuntos (SUNAT solo genera PDF + XML)")
     
-    # Buscar reporte como fallback
+    # Buscar reporte para generación
     print("\n🔍 Buscando reporte de e-Guía para generación dinámica...")
     reporte = buscar_reporte_eguia(uid, models)
     if reporte:
@@ -356,34 +372,17 @@ def descargar_guias(uid, models, guias):
         numero_doc = guia.get('l10n_latam_document_number', f"GUIA_{guia_id}")
         nombre_base = numero_doc.replace('/', '-').replace('\\', '-')
         
+        # Mostrar más detalles en las primeras 10 guías para diagnóstico
         mostrar_detalle = (idx <= 10 or idx % 50 == 1)
         
         if mostrar_detalle:
             print(f"\n[{idx}/{len(guias)}] {guia['name']} | Doc: {numero_doc}")
         
         pdf_obtenido = False
+        metodo_usado = None
         
-        # PASO 1: Buscar adjuntos (PDF y XML)
-        adjuntos = buscar_adjuntos(uid, models, guia_id)
-        
-        # PASO 2: Buscar PDF de e-Guía AGR en los adjuntos
-        pdf_eguia = buscar_pdf_eguia_agr(adjuntos)
-        if pdf_eguia and pdf_eguia.get('datas'):
-            try:
-                ruta_pdf = Path(BASE_PATH) / 'pdf' / f"{nombre_base}.pdf"
-                content = base64.b64decode(pdf_eguia['datas'])
-                with open(ruta_pdf, 'wb') as f:
-                    f.write(content)
-                stats['pdf_descargados'] += 1
-                pdf_obtenido = True
-                if mostrar_detalle:
-                    print(f"   ✅ PDF descargado: {pdf_eguia.get('name', nombre_base + '.pdf')}")
-            except Exception as e:
-                if mostrar_detalle:
-                    print(f"   ⚠️  Error descargando PDF: {str(e)[:50]}")
-        
-        # PASO 3: Si no hay PDF, intentar generarlo (solo si tenemos reporte)
-        if not pdf_obtenido and reporte:
+        # PASO 1: Intentar GENERAR PDF dinámicamente (PRIORIDAD según usuario)
+        if reporte:
             try:
                 pdf_content, errores = generar_pdf_guia(uid, models, guia_id, reporte)
                 if pdf_content:
@@ -392,34 +391,63 @@ def descargar_guias(uid, models, guias):
                         f.write(pdf_content)
                     stats['pdf_generados'] += 1
                     pdf_obtenido = True
+                    metodo_usado = "generado"
                     if mostrar_detalle:
-                        print(f"   ✅ PDF generado: {nombre_base}.pdf")
-                elif errores and idx <= 3:  # Solo mostrar errores en las primeras 3
-                    print(f"   ⚠️  No se pudo generar PDF:")
-                    for error in errores[:1]:
+                        print(f"   ✅ PDF generado dinámicamente: {nombre_base}.pdf")
+                elif errores and idx <= 5:  # Mostrar errores detallados en las primeras 5
+                    print(f"   ⚠️  No se pudo generar PDF con los métodos disponibles:")
+                    for error in errores:
                         print(f"      • {error}")
             except Exception as e:
-                if idx <= 3:
-                    print(f"   ❌ Error generando PDF: {str(e)[:50]}")
+                if idx <= 5:
+                    print(f"   ❌ Error generando PDF: {str(e)}")
+        
+        # PASO 2: Si no se generó, buscar PDF existente en adjuntos (FALLBACK)
+        if not pdf_obtenido:
+            adjuntos = buscar_adjuntos(uid, models, guia_id)
+            pdf_eguia = buscar_pdf_eguia_agr(adjuntos)
+            if pdf_eguia and pdf_eguia.get('datas'):
+                try:
+                    ruta_pdf = Path(BASE_PATH) / 'pdf' / f"{nombre_base}.pdf"
+                    content = base64.b64decode(pdf_eguia['datas'])
+                    with open(ruta_pdf, 'wb') as f:
+                        f.write(content)
+                    stats['pdf_descargados'] += 1
+                    pdf_obtenido = True
+                    metodo_usado = "adjunto"
+                    if mostrar_detalle:
+                        print(f"   ✅ PDF descargado de adjunto: {pdf_eguia.get('name', nombre_base + '.pdf')}")
+                except Exception as e:
+                    if mostrar_detalle:
+                        print(f"   ⚠️  Error descargando PDF adjunto: {str(e)[:50]}")
         
         if not pdf_obtenido:
             stats['sin_pdf'] += 1
+            if mostrar_detalle:
+                print(f"   ❌ No se pudo obtener PDF (ni generar ni descargar)")
+        
+        # PASO 3: Descargar XMLs (siempre buscar en adjuntos)
+        # Asegurarnos de tener los adjuntos
+        if metodo_usado != "adjunto":
+            # Si no buscamos adjuntos antes, buscarlos ahora para los XMLs
+            adjuntos = buscar_adjuntos(uid, models, guia_id)
         
         # PASO 4: Descargar XMLs
-        for adj in adjuntos:
-            if adj.get('name', '').lower().endswith('.xml'):
-                try:
-                    ruta_xml = Path(BASE_PATH) / 'xml' / f"{nombre_base}.xml"
-                    if not ruta_xml.exists() and adj.get('datas'):
-                        content = base64.b64decode(adj['datas'])
-                        with open(ruta_xml, 'wb') as f:
-                            f.write(content)
-                        stats['xml_descargados'] += 1
+        if adjuntos:
+            for adj in adjuntos:
+                if adj.get('name', '').lower().endswith('.xml'):
+                    try:
+                        ruta_xml = Path(BASE_PATH) / 'xml' / f"{nombre_base}.xml"
+                        if not ruta_xml.exists() and adj.get('datas'):
+                            content = base64.b64decode(adj['datas'])
+                            with open(ruta_xml, 'wb') as f:
+                                f.write(content)
+                            stats['xml_descargados'] += 1
+                            if mostrar_detalle:
+                                print(f"   ✅ XML: {adj.get('name', nombre_base + '.xml')}")
+                    except Exception as e:
                         if mostrar_detalle:
-                            print(f"   ✅ XML: {adj.get('name', nombre_base + '.xml')}")
-                except Exception as e:
-                    if mostrar_detalle:
-                        print(f"   ⚠️  Error XML: {str(e)[:50]}")
+                            print(f"   ⚠️  Error XML: {str(e)[:50]}")
         
         if idx % 100 == 0:
             total_pdfs = stats['pdf_descargados'] + stats['pdf_generados']
