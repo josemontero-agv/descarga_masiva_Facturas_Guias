@@ -8,22 +8,60 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
+# ============================================
+# CONFIGURACIÓN DE AMBIENTE
+# ============================================
+# Cambiar entre "desarrollo" y "produccion"
+AMBIENTE = "desarrollo"  # ← CAMBIAR AQUÍ: "desarrollo" o "produccion"
+
 # Cargar credenciales
-env_path = Path(__file__).parent / '.env'
+# El archivo .env está en la raíz del proyecto (1 nivel arriba desde utils/)
+script_dir = Path(__file__).parent
+project_root = script_dir.parent  # Subir un nivel desde utils/ a la raíz
+env_file = f'.env.{AMBIENTE}'
+env_path = project_root / env_file
+
+print(f"📁 Buscando archivo {env_file} en: {env_path}")
+
+# Verificar si el archivo existe
 if not env_path.exists():
-    parent_dirs = [Path(__file__).parent.parent, Path(__file__).parent.parent.parent]
+    # Intentar buscar en directorios padre
+    parent_dirs = [Path(__file__).parent.parent, project_root]
     for parent_dir in parent_dirs:
-        test_env = parent_dir / '.env'
+        test_env = parent_dir / env_file
         if test_env.exists():
             env_path = test_env
             break
 
-load_dotenv(env_path)
+if not env_path.exists():
+    print(f"⚠️  Archivo {env_file} no encontrado, intentando con .env...")
+    env_path = project_root / '.env'
+    if not env_path.exists():
+        print(f"❌ Error: No se encontró el archivo '{env_file}' ni '.env'")
+        print(f"💡 Crea el archivo con las credenciales de Odoo")
+        print(f"   Archivos disponibles:")
+        print(f"   - .env.desarrollo  (para pruebas)")
+        print(f"   - .env.produccion  (para ambiente real)")
+        exit(1)
+
+print(f"✅ Archivo encontrado: {env_path} (Ambiente: {AMBIENTE})")
+load_dotenv(env_path, override=True)
 
 ODOO_URL = os.getenv('ODOO_URL')
 ODOO_DB = os.getenv('ODOO_DB')
 ODOO_USER = os.getenv('ODOO_USER')
 ODOO_PASSWORD = os.getenv('ODOO_PASSWORD')
+
+# Verificar que todas las variables se cargaron
+print("\n🔍 Variables de entorno cargadas:")
+print(f"  ODOO_URL: {ODOO_URL if ODOO_URL else '❌ NO ENCONTRADA'}")
+print(f"  ODOO_DB: {ODOO_DB if ODOO_DB else '❌ NO ENCONTRADA'}")
+print(f"  ODOO_USER: {ODOO_USER if ODOO_USER else '❌ NO ENCONTRADA'}")
+print(f"  ODOO_PASSWORD: {'✅ Configurada' if ODOO_PASSWORD else '❌ NO ENCONTRADA'}")
+
+if not all([ODOO_URL, ODOO_DB, ODOO_USER, ODOO_PASSWORD]):
+    print("\n❌ Error: Faltan credenciales. Verifica tu archivo .env.desarrollo")
+    exit(1)
 
 # Conectar
 print("\n" + "="*70)
@@ -31,16 +69,42 @@ print("🔍 ANÁLISIS DE REPORTES PDF DISPONIBLES EN ODOO")
 print("="*70)
 print(f"📡 Conectando a: {ODOO_URL}")
 
-common = xmlrpc.client.ServerProxy(f'{ODOO_URL}/xmlrpc/2/common')
-uid = common.authenticate(ODOO_DB, ODOO_USER, ODOO_PASSWORD, {})
-
-if not uid:
-    print("❌ Error de autenticación")
+try:
+    import ssl
+    context = ssl.create_default_context()
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    
+    common = xmlrpc.client.ServerProxy(
+        f'{ODOO_URL}/xmlrpc/2/common',
+        allow_none=True,
+        use_datetime=True,
+        context=context
+    )
+    
+    uid = common.authenticate(ODOO_DB, ODOO_USER, ODOO_PASSWORD, {})
+    
+    if not uid:
+        print("❌ Error de autenticación. Revisa tus credenciales.")
+        exit(1)
+        
+except Exception as e:
+    print(f"❌ Error al conectar: {e}")
+    import traceback
+    traceback.print_exc()
     exit(1)
 
 print(f"✅ Conectado (UID: {uid})")
 
-models = xmlrpc.client.ServerProxy(f'{ODOO_URL}/xmlrpc/2/object')
+try:
+    models = xmlrpc.client.ServerProxy(
+        f'{ODOO_URL}/xmlrpc/2/object',
+        allow_none=True,
+        use_datetime=True,
+        context=context
+    )
+except:
+    models = xmlrpc.client.ServerProxy(f'{ODOO_URL}/xmlrpc/2/object')
 
 # ============================================================================
 # BUSCAR TODOS LOS REPORTES PARA stock.picking

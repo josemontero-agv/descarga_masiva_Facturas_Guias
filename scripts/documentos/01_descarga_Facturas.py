@@ -28,15 +28,17 @@ if sys.platform == 'win32':
 # CONFIGURACIÓN DE AMBIENTE
 # ============================================
 # Cambiar entre "desarrollo" y "produccion"
-AMBIENTE = "produccion"  # ← CAMBIAR AQUÍ: "desarrollo" o "produccion"
+AMBIENTE = "desarrollo"  # ← CAMBIAR AQUÍ: "desarrollo" o "produccion"
 
 # Cargar variables de entorno según ambiente
 env_file = f'.env.{AMBIENTE}'
-env_path = Path(__file__).parent / env_file
+# Buscar en la raíz del proyecto (2 niveles arriba desde scripts/documentos/)
+project_root = Path(__file__).parent.parent.parent
+env_path = project_root / env_file
 
 if not env_path.exists():
     # Intentar buscar en directorios padres
-    parent_dirs = [Path(__file__).parent.parent, Path(__file__).parent.parent.parent]
+    parent_dirs = [Path(__file__).parent.parent, project_root]
     for parent_dir in parent_dirs:
         test_env = parent_dir / env_file
         if test_env.exists():
@@ -71,7 +73,7 @@ if not all([ODOO_URL, ODOO_DB, ODOO_USER, ODOO_PASSWORD]):
 
 # Configuración de fechas - Cambiar aquí el año y mes que deseas descargar
 AÑO = 2025  # ← CAMBIAR AQUÍ EL AÑO
-MES = 5    # ← CAMBIAR AQUÍ EL MES (1-12) - Para ejecutar en paralelo, cambiar el mes
+MES = 11    # ← CAMBIAR AQUÍ EL MES (1-12) - Para ejecutar en paralelo, cambiar el mes
 
 # Calcular fechas automáticamente
 from calendar import monthrange
@@ -546,6 +548,9 @@ def mostrar_analisis_problemas(analisis):
         
         if len(analisis['adjuntos_vacios']) > 5:
             print(f"      ... y {len(analisis['adjuntos_vacios']) - 5} más")
+        
+        guardar_lista_problemas('adjuntos_vacios', analisis['adjuntos_vacios'])
+        print(f"   💾 Lista guardada en: {BASE_PATH}/ANALISIS_adjuntos_vacios.txt")
         print()
     
     # 3. Sin PDF
@@ -576,6 +581,9 @@ def mostrar_analisis_problemas(analisis):
         
         if len(analisis['sin_xml']) > 3:
             print(f"      ... y {len(analisis['sin_xml']) - 3} más")
+        
+        guardar_lista_problemas('sin_xml', analisis['sin_xml'])
+        print(f"   💾 Lista guardada en: {BASE_PATH}/ANALISIS_sin_xml.txt")
         print()
     
     # 5. Sin CDR
@@ -584,6 +592,9 @@ def mostrar_analisis_problemas(analisis):
         print(f"   Motivo: Se descargaron PDF/XML pero no CDR")
         print(f"   Nota: CDR puede no existir para facturas muy recientes")
         print(f"         o comprobantes aún no confirmados por SUNAT")
+        
+        guardar_lista_problemas('sin_cdr', analisis['sin_cdr'])
+        print(f"   💾 Lista guardada en: {BASE_PATH}/ANALISIS_sin_cdr.txt")
         print()
     
     # 6. Errores de descarga
@@ -599,9 +610,141 @@ def mostrar_analisis_problemas(analisis):
             print(f"      • {err['nombre']}")
             print(f"        Archivo: {err['archivo']}")
             print(f"        Error: {err['error']}")
+        
+        guardar_lista_problemas('errores_descarga', analisis['errores_descarga'])
+        print(f"   💾 Lista guardada en: {BASE_PATH}/ANALISIS_errores_descarga.txt")
         print()
     
+    # 7. Generar resumen consolidado
+    guardar_resumen_consolidado(analisis, total_problemas)
+    
     print(f"{'='*70}\n")
+
+
+def guardar_resumen_consolidado(analisis, total_problemas):
+    """Guardar resumen consolidado de todos los problemas"""
+    try:
+        ruta_archivo = Path(BASE_PATH) / "RESUMEN_COMPLETO_PROBLEMAS.txt"
+        with open(ruta_archivo, 'w', encoding='utf-8') as f:
+            f.write(f"{'#'*70}\n")
+            f.write(f"# RESUMEN CONSOLIDADO - ANÁLISIS DE DESCARGA\n")
+            f.write(f"{'#'*70}\n")
+            f.write(f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Período: {FECHA_INICIO} al {FECHA_FIN} ({nombre_mes} {AÑO})\n")
+            f.write(f"Ambiente: {AMBIENTE.upper()}\n")
+            f.write(f"{'#'*70}\n\n")
+            
+            # Resumen ejecutivo
+            f.write("="*70 + "\n")
+            f.write("RESUMEN EJECUTIVO\n")
+            f.write("="*70 + "\n")
+            f.write(f"Total de problemas encontrados: {total_problemas}\n\n")
+            
+            f.write(f"❌ Comprobantes sin adjuntos:    {len(analisis['sin_adjuntos'])}\n")
+            f.write(f"⚠️  Adjuntos vacíos:              {len(analisis['adjuntos_vacios'])}\n")
+            f.write(f"📄 Comprobantes sin PDF:         {len(analisis['sin_pdf'])}\n")
+            f.write(f"📋 Comprobantes sin XML:         {len(analisis['sin_xml'])}\n")
+            f.write(f"✅ Comprobantes sin CDR:         {len(analisis['sin_cdr'])}\n")
+            f.write(f"❌ Errores de descarga:          {len(analisis['errores_descarga'])}\n")
+            f.write(f"✅ Comprobantes OK:              {len(analisis['comprobantes_ok'])}\n")
+            f.write("\n")
+            
+            # Archivos de detalle generados
+            f.write("="*70 + "\n")
+            f.write("ARCHIVOS DE DETALLE GENERADOS\n")
+            f.write("="*70 + "\n")
+            if analisis['sin_adjuntos']:
+                f.write(f"• ANALISIS_sin_adjuntos.txt      ({len(analisis['sin_adjuntos'])} registros)\n")
+            if analisis['adjuntos_vacios']:
+                f.write(f"• ANALISIS_adjuntos_vacios.txt   ({len(analisis['adjuntos_vacios'])} registros)\n")
+            if analisis['sin_pdf']:
+                f.write(f"• ANALISIS_sin_pdf.txt           ({len(analisis['sin_pdf'])} registros)\n")
+            if analisis['sin_xml']:
+                f.write(f"• ANALISIS_sin_xml.txt           ({len(analisis['sin_xml'])} registros)\n")
+            if analisis['sin_cdr']:
+                f.write(f"• ANALISIS_sin_cdr.txt           ({len(analisis['sin_cdr'])} registros)\n")
+            if analisis['errores_descarga']:
+                f.write(f"• ANALISIS_errores_descarga.txt  ({len(analisis['errores_descarga'])} registros)\n")
+            f.write("\n")
+            
+            # Prioridades de acción
+            f.write("="*70 + "\n")
+            f.write("PRIORIDADES DE ACCIÓN\n")
+            f.write("="*70 + "\n\n")
+            
+            if analisis['sin_adjuntos']:
+                f.write("🔴 PRIORIDAD ALTA - Comprobantes sin adjuntos\n")
+                f.write(f"   Total: {len(analisis['sin_adjuntos'])} comprobantes\n")
+                f.write("   Acción: Verificar en Odoo y regenerar/reenviar a SUNAT\n")
+                f.write(f"   Archivo: ANALISIS_sin_adjuntos.txt\n\n")
+            
+            if analisis['errores_descarga']:
+                f.write("🔴 PRIORIDAD ALTA - Errores de descarga\n")
+                f.write(f"   Total: {len(analisis['errores_descarga'])} archivos\n")
+                f.write("   Acción: Revisar permisos y volver a ejecutar\n")
+                f.write(f"   Archivo: ANALISIS_errores_descarga.txt\n\n")
+            
+            if analisis['sin_pdf']:
+                f.write("🟡 PRIORIDAD MEDIA - Comprobantes sin PDF\n")
+                f.write(f"   Total: {len(analisis['sin_pdf'])} comprobantes\n")
+                f.write("   Acción: Generar PDF desde Odoo\n")
+                f.write(f"   Archivo: ANALISIS_sin_pdf.txt\n\n")
+            
+            if analisis['sin_xml']:
+                f.write("🟡 PRIORIDAD MEDIA - Comprobantes sin XML\n")
+                f.write(f"   Total: {len(analisis['sin_xml'])} comprobantes\n")
+                f.write("   Acción: Verificar envío a SUNAT\n")
+                f.write(f"   Archivo: ANALISIS_sin_xml.txt\n\n")
+            
+            if analisis['adjuntos_vacios']:
+                f.write("🟡 PRIORIDAD MEDIA - Adjuntos vacíos\n")
+                f.write(f"   Total: {len(analisis['adjuntos_vacios'])} comprobantes\n")
+                f.write("   Acción: Regenerar archivos en Odoo\n")
+                f.write(f"   Archivo: ANALISIS_adjuntos_vacios.txt\n\n")
+            
+            if analisis['sin_cdr']:
+                f.write("🟢 PRIORIDAD BAJA - Comprobantes sin CDR\n")
+                f.write(f"   Total: {len(analisis['sin_cdr'])} comprobantes\n")
+                f.write("   Acción: Esperar confirmación SUNAT y volver a ejecutar\n")
+                f.write(f"   Archivo: ANALISIS_sin_cdr.txt\n\n")
+            
+            # Instrucciones para reintento
+            f.write("="*70 + "\n")
+            f.write("INSTRUCCIONES PARA REINTENTO\n")
+            f.write("="*70 + "\n\n")
+            f.write("1. SOLUCIONAR PROBLEMAS EN ODOO:\n")
+            f.write("   - Regenerar comprobantes faltantes\n")
+            f.write("   - Reenviar a SUNAT los no enviados\n")
+            f.write("   - Generar PDFs faltantes\n\n")
+            
+            f.write("2. VOLVER A EJECUTAR SCRIPT:\n")
+            f.write("   - El script verificará qué archivos YA fueron descargados\n")
+            f.write("   - Solo descargará los archivos nuevos o faltantes\n")
+            f.write("   - No duplicará archivos existentes\n\n")
+            
+            f.write("3. VERIFICAR RESULTADOS:\n")
+            f.write("   - Revisar nuevo archivo RESUMEN_COMPLETO_PROBLEMAS.txt\n")
+            f.write("   - Comparar cantidad de problemas con ejecución anterior\n")
+            f.write("   - Repetir hasta que no haya problemas críticos\n\n")
+            
+            # IDs de Odoo para búsqueda directa
+            if analisis['sin_adjuntos'] or analisis['sin_pdf'] or analisis['sin_xml']:
+                f.write("="*70 + "\n")
+                f.write("IDs DE ODOO PARA BÚSQUEDA DIRECTA\n")
+                f.write("="*70 + "\n\n")
+                
+                if analisis['sin_adjuntos']:
+                    f.write("SIN ADJUNTOS (IDs para buscar en Odoo):\n")
+                    ids = [str(item['id']) for item in analisis['sin_adjuntos'][:20]]
+                    f.write(", ".join(ids))
+                    if len(analisis['sin_adjuntos']) > 20:
+                        f.write(f"... y {len(analisis['sin_adjuntos']) - 20} más")
+                    f.write("\n\n")
+        
+        print(f"   📊 Resumen consolidado guardado en: {BASE_PATH}/RESUMEN_COMPLETO_PROBLEMAS.txt")
+        
+    except Exception as e:
+        print(f"   ⚠️  No se pudo guardar resumen consolidado: {e}")
 
 
 def guardar_lista_problemas(tipo, lista):
@@ -609,20 +752,100 @@ def guardar_lista_problemas(tipo, lista):
     try:
         ruta_archivo = Path(BASE_PATH) / f"ANALISIS_{tipo}.txt"
         with open(ruta_archivo, 'w', encoding='utf-8') as f:
-            f.write(f"ANÁLISIS DE PROBLEMAS: {tipo.upper()}\n")
+            f.write(f"{'='*70}\n")
+            f.write(f"ANÁLISIS DE PROBLEMAS: {tipo.upper().replace('_', ' ')}\n")
+            f.write(f"{'='*70}\n")
             f.write(f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write(f"Total: {len(lista)} comprobantes\n")
-            f.write("="*70 + "\n\n")
+            f.write(f"Período: {FECHA_INICIO} al {FECHA_FIN}\n")
+            f.write(f"Total de problemas: {len(lista)}\n")
+            f.write(f"{'='*70}\n\n")
             
-            for item in lista:
-                f.write(f"Comprobante: {item['nombre']}\n")
+            # Escribir información según el tipo de problema
+            for idx, item in enumerate(lista, 1):
+                f.write(f"[{idx}] Comprobante: {item['nombre']}\n")
+                
                 if 'id' in item:
-                    f.write(f"  ID Odoo: {item['id']}\n")
+                    f.write(f"    ID Odoo: {item['id']}\n")
+                
                 if 'fecha' in item:
-                    f.write(f"  Fecha: {item['fecha']}\n")
+                    f.write(f"    Fecha: {item['fecha']}\n")
+                
                 if 'partner' in item:
-                    f.write(f"  Cliente: {item['partner']}\n")
+                    f.write(f"    Cliente: {item['partner']}\n")
+                
+                if 'cantidad' in item:
+                    f.write(f"    Archivos vacíos: {item['cantidad']}\n")
+                
+                if 'archivo' in item:
+                    f.write(f"    Archivo: {item['archivo']}\n")
+                
+                if 'error' in item:
+                    f.write(f"    Error: {item['error']}\n")
+                
+                if 'archivos' in item:
+                    f.write(f"    Archivos descargados: {item['archivos']}\n")
+                
                 f.write("\n")
+            
+            # Agregar sección de recomendaciones
+            f.write(f"{'='*70}\n")
+            f.write("RECOMENDACIONES Y ACCIONES\n")
+            f.write(f"{'='*70}\n\n")
+            
+            if tipo == 'sin_adjuntos':
+                f.write("CAUSA PROBABLE:\n")
+                f.write("- Facturas no enviadas a SUNAT\n")
+                f.write("- Comprobantes anulados sin archivos\n")
+                f.write("- Error en la generación del comprobante electrónico\n\n")
+                f.write("ACCIÓN RECOMENDADA:\n")
+                f.write("1. Verificar en Odoo el estado del comprobante\n")
+                f.write("2. Reenviar a SUNAT si es necesario\n")
+                f.write("3. Regenerar el comprobante si está corrupto\n")
+            
+            elif tipo == 'sin_pdf':
+                f.write("CAUSA PROBABLE:\n")
+                f.write("- PDF no generado en Odoo\n")
+                f.write("- Nombre de archivo no estándar\n\n")
+                f.write("ACCIÓN RECOMENDADA:\n")
+                f.write("1. Generar PDF manualmente desde Odoo\n")
+                f.write("2. Volver a ejecutar el script de descarga\n")
+            
+            elif tipo == 'sin_xml':
+                f.write("CAUSA PROBABLE:\n")
+                f.write("- XML no generado o no enviado a SUNAT\n")
+                f.write("- Archivo XML eliminado\n\n")
+                f.write("ACCIÓN RECOMENDADA:\n")
+                f.write("1. Verificar envío a SUNAT\n")
+                f.write("2. Regenerar comprobante si es necesario\n")
+            
+            elif tipo == 'sin_cdr':
+                f.write("NOTA:\n")
+                f.write("- CDR (Constancia de Recepción) solo existe para comprobantes\n")
+                f.write("  confirmados por SUNAT\n")
+                f.write("- Comprobantes muy recientes pueden no tener CDR aún\n\n")
+                f.write("ACCIÓN RECOMENDADA:\n")
+                f.write("1. Esperar confirmación de SUNAT (puede tomar horas)\n")
+                f.write("2. Volver a ejecutar el script más tarde\n")
+            
+            elif tipo == 'adjuntos_vacios':
+                f.write("CAUSA PROBABLE:\n")
+                f.write("- Archivos corruptos en Odoo\n")
+                f.write("- Error en la carga del archivo\n")
+                f.write("- Base de datos con inconsistencias\n\n")
+                f.write("ACCIÓN RECOMENDADA:\n")
+                f.write("1. Regenerar los archivos en Odoo\n")
+                f.write("2. Contactar soporte técnico si persiste\n")
+            
+            elif tipo == 'errores_descarga':
+                f.write("CAUSA PROBABLE:\n")
+                f.write("- Permisos insuficientes en carpeta destino\n")
+                f.write("- Caracteres inválidos en nombre de archivo\n")
+                f.write("- Disco lleno\n\n")
+                f.write("ACCIÓN RECOMENDADA:\n")
+                f.write("1. Verificar permisos de escritura\n")
+                f.write("2. Verificar espacio en disco\n")
+                f.write("3. Revisar errores específicos arriba\n")
+            
     except Exception as e:
         print(f"   ⚠️  No se pudo guardar archivo de análisis: {e}")
 

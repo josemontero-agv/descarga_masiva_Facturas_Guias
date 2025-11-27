@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Script para descarga de Guías de Remisión Electrónicas - ANÁLISIS Y DESCARGA
-Investigará el modelo correcto y descargará PDFs y XMLs
+Script para descarga de XMLs de Guías de Remisión Electrónicas desde Odoo
+Descarga los archivos XML adjuntos de las guías (funcional)
+NOTA: Para PDFs de guías, usar el script de web scraping
 """
 
 import xmlrpc.client
@@ -25,16 +26,37 @@ if sys.platform == 'win32':
 # CONFIGURACIÓN
 # ============================================================================
 
-env_path = Path(__file__).parent / '.env'
+# ============================================
+# CONFIGURACIÓN DE AMBIENTE
+# ============================================
+# Cambiar entre "desarrollo" y "produccion"
+AMBIENTE = "desarrollo"  # ← CAMBIAR AQUÍ: "desarrollo" o "produccion"
+
+# Cargar variables de entorno según ambiente
+env_file = f'.env.{AMBIENTE}'
+# Buscar en la raíz del proyecto (3 niveles arriba desde scripts/documentos/)
+project_root = Path(__file__).parent.parent.parent
+env_path = project_root / env_file
+
 if not env_path.exists():
-    parent_dirs = [Path(__file__).parent.parent, Path(__file__).parent.parent.parent]
+    # Intentar buscar en directorios padres
+    parent_dirs = [Path(__file__).parent.parent, project_root]
     for parent_dir in parent_dirs:
-        test_env = parent_dir / '.env'
+        test_env = parent_dir / env_file
         if test_env.exists():
             env_path = test_env
             break
 
-load_dotenv(env_path)
+if not env_path.exists():
+    print(f"❌ Error: No se encontró el archivo '{env_file}'")
+    print(f"💡 Crea el archivo con las credenciales de Odoo")
+    print(f"   Archivos disponibles:")
+    print(f"   - .env.desarrollo  (para pruebas)")
+    print(f"   - .env.produccion  (para ambiente real)")
+    exit(1)
+
+print(f"📁 Cargando configuración desde: {env_path} (Ambiente: {AMBIENTE})")
+load_dotenv(env_path, override=True)
 
 ODOO_URL = os.getenv('ODOO_URL')
 ODOO_DB = os.getenv('ODOO_DB')
@@ -54,7 +76,8 @@ ultimo_dia = monthrange(AÑO, MES)[1]
 FECHA_INICIO = f"{AÑO}-{MES:02d}-01"
 FECHA_FIN = f"{AÑO}-{MES:02d}-{ultimo_dia}"
 
-BASE_PATH = r"C:\Users\jmontero\Desktop\GitHub Proyectos_AGV\descarga_masiva_Facturas_Guias\Prueba_Octubre\09_Guias_Remision_V2"
+# Ruta base relativa al proyecto
+BASE_PATH = project_root / "Prueba_Octubre" / "09_Guias_Remision"
 
 # Filtros específicos del usuario
 PICKING_TYPE_ID = 2
