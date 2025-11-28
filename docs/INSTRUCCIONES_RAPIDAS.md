@@ -24,27 +24,44 @@ ODOO_USER=tu_usuario
 ODOO_PASSWORD=tu_password
 ```
 
-### 3. Ejecutar descarga
+### 3. Ejecutar descarga de COMPROBANTES (01, 03, 07, 08)
 
-**Opción A: Un mes a la vez**
-```bash
-python 01_descarga_Facturas.py
-```
-
-**Opción B: Múltiples meses en paralelo** (Recomendado)
-
-Abrir 3 terminales y ejecutar:
+Desde la raíz del proyecto:
 
 ```bash
-# Terminal 1
-python descargar_octubre.py
-
-# Terminal 2  
-python descargar_noviembre.py
-
-# Terminal 3
-python descargar_diciembre.py
+cd "C:\Users\jmontero\Desktop\GitHub Proyectos_AGV\descarga_masiva_Facturas_Guias"
+python scripts/documentos/01_descarga_Facturas.py
 ```
+
+Los resultados se guardan en `Prueba_Octubre/01_Facturas`, `03_Boletas`, `07_Notas_Credito`, `08_Notas_Debito`
+en las subcarpetas `pdf`, `xml` y `cdr`.
+
+---
+
+### 4. Ejecutar descarga de GUÍAS – XML (09)
+
+```bash
+python scripts/documentos/09_descarga_guias_xml.py
+```
+
+Los XML (y CDR si aplica) se guardan en `Prueba_Octubre/09_Guias_Remision/xml`.
+
+---
+
+### 5. Ejecutar descarga de GUÍAS – PDFs (Web Scraping)
+
+Requisitos:
+- Google Chrome instalado
+- `.env.desarrollo` o `.env.produccion` configurado
+
+Ejecutar:
+
+```bash
+python scripts/guias_web_scraping/descargar_pdfs_guias.py
+```
+
+Este script abre Chrome, inicia sesión en Odoo y descarga los PDFs de la **e‑Guía de Remisión AGR**
+para el mes configurado en el script, guardándolos en `Prueba_Octubre/09_Guias_Remision_V2/pdf`.
 
 ---
 
@@ -67,21 +84,33 @@ Get-PSDrive Y | Format-Table Name, Used, Free
 
 ## 🎯 CAMBIAR MES A DESCARGAR
 
-En `01_descarga_Facturas.py`, línea 74:
+- En `scripts/documentos/01_descarga_Facturas.py`:
 
 ```python
+AÑO = 2025
 MES = 11    # ← Cambiar: 1=Enero, 2=Febrero, ..., 12=Diciembre
+```
+
+- En `scripts/documentos/09_descarga_guias_xml.py` y `scripts/guias_web_scraping/descargar_pdfs_guias.py`:
+
+```python
+AÑO = 2025
+MES = 10
 ```
 
 ---
 
 ## 🔧 CAMBIAR AMBIENTE
 
-En `01_descarga_Facturas.py`, línea 31:
+En cada script principal (`01_descarga_Facturas.py`, `09_descarga_guias_xml.py`,
+`scripts/guias_web_scraping/descargar_pdfs_guias.py`) existe una constante:
 
 ```python
-AMBIENTE = "produccion"  # ← Cambiar a "desarrollo" para pruebas
+AMBIENTE = "produccion"  # o "desarrollo"
 ```
+
+- **desarrollo**: usa `.env.desarrollo` (servidor de pruebas)
+- **produccion**: usa `.env.produccion` (servidor real)
 
 ---
 

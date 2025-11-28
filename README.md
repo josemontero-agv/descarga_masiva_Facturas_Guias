@@ -83,8 +83,57 @@ python scripts/guias_web_scraping/descargar_pdfs_guias.py
 - ✅ **Boletas** (03) - `scripts/documentos/01_descarga_Facturas.py`
 - ✅ **Notas de Crédito** (07) - `scripts/documentos/01_descarga_Facturas.py`
 - ✅ **Notas de Débito** (08) - `scripts/documentos/01_descarga_Facturas.py`
-- ✅ **Guías de Remisión - XMLs** (09) - `scripts/documentos/09_descarga_guias_xml.py` (funcional)
-- 🚧 **Guías de Remisión - PDFs** (09) - `scripts/guias_web_scraping/` (en desarrollo)
+- ✅ **Guías de Remisión - XMLs** (09) - `scripts/documentos/09_descarga_guias_xml.py` (XMLs oficiales SUNAT)
+- ✅ **Guías de Remisión - PDFs** (09) - `scripts/guias_web_scraping/descargar_pdfs_guias.py` (web scraping, alto volumen)
+
+## 📖 Guía de Uso por Tipo de Documento
+
+- **Facturas, Boletas, Notas de Crédito y Débito (01, 03, 07, 08)**  
+  1. Editar `scripts/documentos/01_descarga_Facturas.py` y ajustar:
+     - **AMBIENTE**: `"desarrollo"` o `"produccion"`.
+     - **AÑO / MES**: periodo a descargar.  
+  2. Ejecutar:
+     ```bash
+     python scripts/documentos/01_descarga_Facturas.py
+     ```
+  3. Los archivos se guardan en `Prueba_Octubre/01_Facturas`, `03_Boletas`, `07_Notas_Credito`, `08_Notas_Debito`
+     con subcarpetas `pdf`, `xml`, `cdr`.
+
+- **Guías de Remisión – XML (09)**  
+  1. Editar `scripts/documentos/09_descarga_guias_xml.py` y ajustar **AÑO / MES**.  
+  2. Ejecutar:
+     ```bash
+     python scripts/documentos/09_descarga_guias_xml.py
+     ```
+  3. Los XML se guardan en `Prueba_Octubre/09_Guias_Remision/xml` (y PDF/CDR si aplica).
+
+- **Guías de Remisión – PDFs (Web Scraping, interfaz web)**  
+  1. Verificar que Google Chrome esté instalado en Windows.  
+  2. Editar `scripts/guias_web_scraping/descargar_pdfs_guias.py`:
+     - **AMBIENTE**: `"desarrollo"` o `"produccion"`.
+     - **AÑO / MES**: periodo de guías a descargar.
+  3. Ejecutar:
+     ```bash
+     python scripts/guias_web_scraping/descargar_pdfs_guias.py
+     ```
+  4. El script:
+     - Se conecta a Odoo por XML‑RPC para listar las guías.
+     - Abre Chrome, inicia sesión automáticamente.
+     - Para cada guía, invoca el reporte **e‑Guía de Remisión AGR** y descarga el PDF.
+     - Guarda los PDFs en `Prueba_Octubre/09_Guias_Remision_V2/pdf` con nombre `Txxx-xxxxxx.pdf`.
+
+### Ejecutar varios meses en paralelo
+
+- Abrir una terminal por cada mes, cambiar **AÑO / MES** en el script correspondiente (facturas o guías) y ejecutar en paralelo.
+- Ejemplo (tres meses de guías XML):
+  ```bash
+  # Terminal 1
+  python scripts/documentos/09_descarga_guias_xml.py   # MES = 10
+  # Terminal 2
+  python scripts/documentos/09_descarga_guias_xml.py   # MES = 11
+  # Terminal 3
+  python scripts/documentos/09_descarga_guias_xml.py   # MES = 12
+  ```
 
 ## 🛠️ Utilidades
 
@@ -104,8 +153,9 @@ python utils/Prueba_test_odoo_conexion/conectar_odoo.py
 
 ## 📚 Documentación
 
-- [Instrucciones Rápidas](docs/INSTRUCCIONES_RAPIDAS.md) - Guía de configuración y uso
-- [Extracción de Guías](docs/README_EXTRACCION_GUIAS.md) - Documentación sobre guías (deprecated)
+- [Instrucciones Rápidas](docs/INSTRUCCIONES_RAPIDAS.md) - Guía de configuración y uso general
+- [Arquitectura](ARCHITECTURA.md) - Visión técnica de la estructura del proyecto
+- [Guías de Remisión (histórico)](docs/README_EXTRACCION_GUIAS.md) - Enfoques antiguos, solo referencia
 
 ## ⚠️ Notas Importantes
 

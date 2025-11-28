@@ -87,7 +87,7 @@ env_path = project_root / '.env.desarrollo'
 | 07 | Notas de Crédito | ✅ Funcional | `scripts/documentos/01_descarga_Facturas.py` |
 | 08 | Notas de Débito | ✅ Funcional | `scripts/documentos/01_descarga_Facturas.py` |
 | 09 | Guías de Remisión - XMLs | ✅ Funcional | `scripts/documentos/09_descarga_guias_xml.py` |
-| 09 | Guías de Remisión - PDFs | 🚧 En desarrollo | `scripts/guias_web_scraping/` |
+| 09 | Guías de Remisión - PDFs | ✅ Funcional | `scripts/guias_web_scraping/descargar_pdfs_guias.py` |
 
 ## 🎯 Principios de Diseño
 
@@ -100,7 +100,7 @@ env_path = project_root / '.env.desarrollo'
 ## 🔮 Futuro
 
 - [x] Implementar estructura para web scraping de guías
-- [ ] Completar implementación de web scraping para PDFs de guías
+- [x] Implementar descarga masiva de PDFs de guías vía web scraping (Completado)
 - [ ] Crear módulo común para conexión a Odoo
 - [ ] Agregar tests unitarios en `tests/`
 - [ ] Mejorar manejo de errores

@@ -7,9 +7,6 @@ xml.etree.ElementTree
 datetime
 pathlib
 dotenv
-os
-sys
-os.path
-os.makedirs
-os.path.join
-os.path.exists
+selenium
+webdriver-manager
+urllib3

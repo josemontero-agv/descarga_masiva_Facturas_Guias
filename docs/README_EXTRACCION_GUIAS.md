@@ -1,82 +1,45 @@
-# 📋 Extracción y Generación Local de PDFs de Guías de Remisión
+# 📋 Guías de Remisión – Documentación Histórica
 
-## 🎯 Objetivo
+## ℹ️ Contexto
 
-Este script **extrae datos de Odoo via XML-RPC** y **genera los PDFs localmente en Python**, evitando las limitaciones de los métodos de generación remota de Odoo 16.
+Este archivo documenta los **enfoques antiguos** que se probaron para generar PDFs
+de Guías de Remisión (generación local con `reportlab`, uso intensivo de XML‑RPC, etc.).
 
-## 🔧 Archivos Creados
+Actualmente, la solución recomendada es:
 
-### 1. `extraccion_reporte_guia_pdf.py` (NUEVO)
-**Script principal** que:
-- ✅ Se conecta a Odoo via XML-RPC
-- ✅ Analiza el reporte QWeb `agr_shiping_guide.report_edi_gre`
-- ✅ Extrae TODOS los datos necesarios de cada guía
-- ✅ **Genera el PDF localmente** usando `reportlab` (biblioteca Python)
-- ✅ Guarda directamente en la carpeta especificada
+- **XMLs de Guías**: `scripts/documentos/09_descarga_guias_xml.py`
+- **PDFs de Guías (web scraping)**: `scripts/guias_web_scraping/descargar_pdfs_guias.py`
 
-**Ventajas:**
-- ⚡ Más rápido (no depende de Odoo para generar PDFs)
-- 🎨 Control total sobre el diseño del PDF
-- 🔧 Personalizable según tus necesidades
-- 🚀 No tiene limitaciones de XML-RPC
+Esta documentación se conserva solo como **referencia técnica**.
 
-### 2. `09_descaga_guias.py` (ACTUALIZADO)
-Script original mejorado con:
-- ✅ Métodos correctos de Odoo 16 (`_render`)
-- ✅ Estrategia dual: generar nuevo o descargar existente
-- ✅ Logging detallado para diagnóstico
-- ✅ Nueva ruta: `09_Guias_Remision_V2`
+## Enfoques Probados (NO recomendados hoy)
 
-## 🚀 Uso Rápido
+- `extraccion_reporte_guia_pdf.py`  
+  - Analizaba el reporte QWeb `agr_shiping_guide.report_edi_gre`
+  - Extraía todos los datos de `stock.picking`
+  - Generaba el PDF localmente con `reportlab`
 
-### Opción A: Generación Local (RECOMENDADO)
+- `09_descaga_guias.py`  
+  - Intentaba usar métodos internos de Odoo (`_render`, `_render_qweb_pdf`)
+  - Mezclaba descarga de PDFs y XMLs vía XML‑RPC
 
-```bash
-cd "C:\Users\jmontero\Desktop\GitHub Proyectos_AGV\descarga_masiva_Facturas_Guias"
-python extraccion_reporte_guia_pdf.py
-```
+Limitaciones detectadas:
 
-**Características:**
-- Genera PDFs localmente (más rápido)
-- 3 modos: análisis (1 guía), prueba (10 guías), completo (todas)
-- Control total sobre el formato
+- Cambios de versión de Odoo rompían los métodos internos (`_render`, etc.).
+- Mantenimiento complejo y difícil de explicar a usuarios no técnicos.
+- Problemas de rendimiento para volúmenes altos (> 10,000 guías).
 
-### Opción B: Descarga desde Odoo
+## Solución Actual (Resumen)
 
-```bash
-python 09_descaga_guias.py
-```
+Para conocer la solución vigente de extracción y descarga de guías,
+revisa:
 
-**Características:**
-- Intenta generar PDF remotamente usando Odoo
-- Si falla, descarga PDF existente
-- Descarga XMLs automáticamente
+- `README.md` → sección **“Guía de Uso por Tipo de Documento”**
+- `ARCHITECTURA.md` → sección **“Tipos de Documentos”**
+- `scripts/guias_web_scraping/README.md` → detalles del web scraping
 
-## 📊 Proceso del Script de Extracción
-
-### PASO 1: Análisis del Reporte QWeb
-```
-🔍 ANALIZANDO REPORTE QWEB
-- Busca: agr_shiping_guide.report_edi_gre
-- Identifica campos necesarios del modelo stock.picking
-- Muestra estructura del reporte
-```
-
-### PASO 2: Extracción de Datos
-Para cada guía, extrae:
-- ✅ Datos del picking (documento, fechas, estado)
-- ✅ Información del emisor (compañía)
-- ✅ Información del destinatario (partner)
-- ✅ Líneas de productos (stock.move)
-- ✅ Detalles de productos
-- ✅ Ubicaciones origen/destino
-
-### PASO 3: Generación de PDF
-Usando `reportlab`:
-- 📄 Crea PDF con formato profesional
-- 🎨 Replica estructura de guía de remisión SUNAT
-- 📦 Incluye todos los productos
-- 💾 Guarda en carpeta especificada
+Si necesitas estudiar el diseño anterior (por ejemplo, para auditoría o ideas futuras),
+puedes leer las versiones anteriores de este archivo en el historial de Git.
 
 ## 🎨 Estructura del PDF Generado
 
