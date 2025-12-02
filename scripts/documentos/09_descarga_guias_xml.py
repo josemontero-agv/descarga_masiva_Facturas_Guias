@@ -30,7 +30,7 @@ if sys.platform == 'win32':
 # CONFIGURACIÓN DE AMBIENTE
 # ============================================
 # Cambiar entre "desarrollo" y "produccion"
-AMBIENTE = "desarrollo"  # ← CAMBIAR AQUÍ: "desarrollo" o "produccion"
+AMBIENTE = "produccion"  # ← CAMBIAR AQUÍ: "desarrollo" o "produccion"
 
 # Cargar variables de entorno según ambiente
 env_file = f'.env.{AMBIENTE}'
@@ -69,15 +69,38 @@ if not all([ODOO_URL, ODOO_DB, ODOO_USER, ODOO_PASSWORD]):
 
 # Configuración
 AÑO = 2025
-MES = 10
+MES = 1
 
 from calendar import monthrange
 ultimo_dia = monthrange(AÑO, MES)[1]
 FECHA_INICIO = f"{AÑO}-{MES:02d}-01"
 FECHA_FIN = f"{AÑO}-{MES:02d}-{ultimo_dia}"
 
-# Ruta base relativa al proyecto
-BASE_PATH = project_root / "Prueba_Octubre" / "09_Guias_Remision"
+# Obtener nombre del mes
+nombre_mes = datetime(AÑO, MES, 1).strftime('%B')
+nombre_carpeta_mes = f"{MES:02d}_{nombre_mes}"
+
+# Ruta base de descarga
+if AMBIENTE == "produccion":
+    BASE_PATH_RAIZ = rf"Y:\Finanzas y Contabilidad\Créditos y Cobranzas\José Montero\Descarga_Masiva_FT_GUIA\{AÑO}\{nombre_carpeta_mes}"
+    
+    # Verificar acceso a la ruta de red
+    if not Path(BASE_PATH_RAIZ).parent.parent.exists():
+        print(f"❌ Error: No se puede acceder a la ruta de red Y:")
+        print(f"   {BASE_PATH_RAIZ}")
+        # No salimos drásticamente para permitir pruebas si el usuario quiere, pero advertimos
+else:
+    BASE_PATH_RAIZ = project_root / "Prueba_Octubre" / nombre_carpeta_mes
+    print(f"🔧 MODO DESARROLLO: Guardando en ruta local: {BASE_PATH_RAIZ}")
+
+# Ruta específica para Guías
+BASE_PATH = Path(BASE_PATH_RAIZ) / "09_Guias_Remision"
+
+# Crear carpeta raíz si no existe
+try:
+    BASE_PATH.mkdir(parents=True, exist_ok=True)
+except Exception as e:
+    print(f"⚠️  No se pudo crear la carpeta base: {e}")
 
 # Filtros específicos del usuario
 PICKING_TYPE_ID = 2
@@ -248,10 +271,15 @@ def crear_carpetas():
     print("📁 CREANDO CARPETAS")
     print(f"{'='*70}")
     
-    for tipo in ['pdf', 'xml']:
+    subcarpetas = ['xml', 'cdr']
+    
+    for tipo in subcarpetas:
         ruta = Path(BASE_PATH) / tipo
-        ruta.mkdir(parents=True, exist_ok=True)
-        print(f"✅ {ruta}")
+        try:
+            ruta.mkdir(parents=True, exist_ok=True)
+            print(f"✅ Carpeta verificada: {ruta}")
+        except OSError as e:
+            print(f"❌ Error crítico creando carpeta {tipo}: {e}")
 
 
 def buscar_reporte_eguia(uid, models):
@@ -340,6 +368,24 @@ def buscar_adjuntos(uid, models, picking_id):
         return []
 
 
+def clasificar_archivo(nombre_archivo):
+    """Clasificar el tipo de archivo por su extensión y nombre"""
+    nombre_lower = nombre_archivo.lower()
+    
+    if nombre_lower.endswith('.pdf'):
+        return 'pdf'
+    elif nombre_lower.endswith('.zip'):
+        return 'zip'
+    elif nombre_lower.endswith('.xml'):
+        if 'cdr' in nombre_lower or 'constancia' in nombre_lower:
+            return 'cdr'
+        return 'xml'
+    elif 'cdr' in nombre_lower:
+        return 'cdr'
+    else:
+        return None
+
+
 def buscar_pdf_eguia_agr(adjuntos):
     """Buscar específicamente el PDF de 'e-Guía de Remisión AGR' entre los adjuntos"""
     # Buscar por nombre que contenga indicadores del reporte AGR
@@ -364,120 +410,310 @@ def buscar_pdf_eguia_agr(adjuntos):
 
 
 def descargar_guias(uid, models, guias):
-    """Descargar PDFs (método e-Guía AGR) y XMLs de las guías"""
+    """Descargar XMLs y CDRs de las guías (PDFs se descargan con otro script)"""
     print(f"\n{'='*70}")
-    print("📥 DESCARGANDO GUÍAS DE REMISIÓN")
+    print("📥 DESCARGANDO XML/CDR DE GUÍAS DE REMISIÓN")
     print(f"{'='*70}")
     print("💡 Estrategia:")
-    print("   1. GENERAR PDF dinámicamente usando reporte AGR (preferido)")
-    print("   2. Si falla, buscar PDF existente en adjuntos (fallback)")
-    print("   3. Descargar XMLs adjuntos (SUNAT solo genera PDF + XML)")
-    
-    # Buscar reporte para generación
-    print("\n🔍 Buscando reporte de e-Guía para generación dinámica...")
-    reporte = buscar_reporte_eguia(uid, models)
-    if reporte:
-        print(f"✅ Reporte disponible: {reporte}")
-    else:
-        print("⚠️  No se encontró reporte, solo se descargarán PDFs existentes")
+    print("   1. Buscar adjuntos en cada guía")
+    print("   2. Descargar XMLs y CDRs (incluyendo contenido de ZIPs)")
+    print("   3. Ignorar PDFs (se manejan en otro script)")
     
     stats = {
         'total': len(guias),
-        'pdf_descargados': 0,
-        'pdf_generados': 0,
         'xml_descargados': 0,
-        'sin_pdf': 0,
-        'errores': 0
+        'cdr_descargados': 0,
+        'sin_xml': 0,
+        'errores': 0,
+        'archivos_por_tipo': {'xml': 0, 'cdr': 0}
     }
+    
+    analisis_problemas = {
+        'sin_adjuntos': [],
+        'adjuntos_vacios': [],
+        'sin_xml': [],
+        'sin_cdr': [],
+        'errores_descarga': [],
+        'comprobantes_ok': []
+    }
+    
+    carpeta_guias = Path(BASE_PATH)
     
     for idx, guia in enumerate(guias, 1):
         guia_id = guia['id']
         numero_doc = guia.get('l10n_latam_document_number', f"GUIA_{guia_id}")
         nombre_base = numero_doc.replace('/', '-').replace('\\', '-')
+        fecha = guia.get('date_done', '')
         
-        # Mostrar más detalles en las primeras 10 guías para diagnóstico
+        # Mostrar más detalles en las primeras 10 guías
         mostrar_detalle = (idx <= 10 or idx % 50 == 1)
         
         if mostrar_detalle:
             print(f"\n[{idx}/{len(guias)}] {guia['name']} | Doc: {numero_doc}")
         
-        pdf_obtenido = False
-        metodo_usado = None
+        # Variables para tracking por guía
+        archivos_descargados_guia = 0
+        tipos_encontrados = {'xml': False, 'cdr': False}
+        adjuntos_vacios_guia = 0
         
-        # PASO 1: Intentar GENERAR PDF dinámicamente (PRIORIDAD según usuario)
-        if reporte:
-            try:
-                pdf_content, errores = generar_pdf_guia(uid, models, guia_id, reporte)
-                if pdf_content:
-                    ruta_pdf = Path(BASE_PATH) / 'pdf' / f"{nombre_base}.pdf"
-                    with open(ruta_pdf, 'wb') as f:
-                        f.write(pdf_content)
-                    stats['pdf_generados'] += 1
-                    pdf_obtenido = True
-                    metodo_usado = "generado"
-                    if mostrar_detalle:
-                        print(f"   ✅ PDF generado dinámicamente: {nombre_base}.pdf")
-                elif errores and idx <= 5:  # Mostrar errores detallados en las primeras 5
-                    print(f"   ⚠️  No se pudo generar PDF con los métodos disponibles:")
-                    for error in errores:
-                        print(f"      • {error}")
-            except Exception as e:
-                if idx <= 5:
-                    print(f"   ❌ Error generando PDF: {str(e)}")
+        # Obtener adjuntos
+        adjuntos = buscar_adjuntos(uid, models, guia_id)
         
-        # PASO 2: Si no se generó, buscar PDF existente en adjuntos (FALLBACK)
-        if not pdf_obtenido:
-            adjuntos = buscar_adjuntos(uid, models, guia_id)
-            pdf_eguia = buscar_pdf_eguia_agr(adjuntos)
-            if pdf_eguia and pdf_eguia.get('datas'):
-                try:
-                    ruta_pdf = Path(BASE_PATH) / 'pdf' / f"{nombre_base}.pdf"
-                    content = base64.b64decode(pdf_eguia['datas'])
-                    with open(ruta_pdf, 'wb') as f:
-                        f.write(content)
-                    stats['pdf_descargados'] += 1
-                    pdf_obtenido = True
-                    metodo_usado = "adjunto"
-                    if mostrar_detalle:
-                        print(f"   ✅ PDF descargado de adjunto: {pdf_eguia.get('name', nombre_base + '.pdf')}")
-                except Exception as e:
-                    if mostrar_detalle:
-                        print(f"   ⚠️  Error descargando PDF adjunto: {str(e)[:50]}")
+        if not adjuntos:
+            analisis_problemas['sin_adjuntos'].append({
+                'nombre': numero_doc,
+                'fecha': fecha,
+                'id': guia_id
+            })
         
-        if not pdf_obtenido:
-            stats['sin_pdf'] += 1
-            if mostrar_detalle:
-                print(f"   ❌ No se pudo obtener PDF (ni generar ni descargar)")
-        
-        # PASO 3: Descargar XMLs (siempre buscar en adjuntos)
-        # Asegurarnos de tener los adjuntos
-        if metodo_usado != "adjunto":
-            # Si no buscamos adjuntos antes, buscarlos ahora para los XMLs
-            adjuntos = buscar_adjuntos(uid, models, guia_id)
-        
-        # PASO 4: Descargar XMLs
+        # Procesar adjuntos
         if adjuntos:
             for adj in adjuntos:
-                if adj.get('name', '').lower().endswith('.xml'):
-                    try:
-                        ruta_xml = Path(BASE_PATH) / 'xml' / f"{nombre_base}.xml"
-                        if not ruta_xml.exists() and adj.get('datas'):
-                            content = base64.b64decode(adj['datas'])
-                            with open(ruta_xml, 'wb') as f:
-                                f.write(content)
-                            stats['xml_descargados'] += 1
+                nombre_archivo = adj.get('name', '')
+                datas = adj.get('datas')
+                
+                if not datas:
+                    if nombre_archivo:
+                        adjuntos_vacios_guia += 1
+                    continue
+                
+                try:
+                    tipo_archivo = clasificar_archivo(nombre_archivo)
+                    
+                    if not tipo_archivo or tipo_archivo == 'pdf':
+                        continue
+                    
+                    contenido = base64.b64decode(datas)
+                    
+                    # Manejo de ZIP
+                    if tipo_archivo == 'zip':
+                        try:
+                            with zipfile.ZipFile(io.BytesIO(contenido)) as z:
+                                for filename in z.namelist():
+                                    tipo_interno = clasificar_archivo(filename)
+                                    
+                                    if not tipo_interno or tipo_interno in ['zip', 'pdf']:
+                                        continue
+                                    
+                                    ruta_carpeta = carpeta_guias / tipo_interno
+                                    extension_interna = filename.split('.')[-1]
+                                    nombre_final = f"{nombre_base}.{extension_interna}"
+                                    ruta_archivo = ruta_carpeta / nombre_final
+                                    
+                                    with open(ruta_archivo, 'wb') as f:
+                                        f.write(z.read(filename))
+                                    
+                                    if tipo_interno in stats['archivos_por_tipo']:
+                                        stats['archivos_por_tipo'][tipo_interno] += 1
+                                    
+                                    if tipo_interno == 'xml': stats['xml_descargados'] += 1
+                                    if tipo_interno == 'cdr': stats['cdr_descargados'] += 1
+                                    
+                                    tipos_encontrados[tipo_interno] = True
+                                    archivos_descargados_guia += 1
+                                    
+                                    if mostrar_detalle:
+                                        print(f"      📦 ZIP -> ✅ {tipo_interno.upper()}: {nombre_final}")
+                                        
+                        except Exception as e:
                             if mostrar_detalle:
-                                print(f"   ✅ XML: {adj.get('name', nombre_base + '.xml')}")
-                    except Exception as e:
+                                print(f"      ❌ Error procesando ZIP: {e}")
+                                
+                    # Archivos normales (XML, CDR)
+                    elif tipo_archivo in ['xml', 'cdr']:
+                        ruta_carpeta = carpeta_guias / tipo_archivo
+                        extension = nombre_archivo.split('.')[-1]
+                        nombre_final = f"{nombre_base}.{extension}"
+                        ruta_archivo = ruta_carpeta / nombre_final
+                        
+                        with open(ruta_archivo, 'wb') as f:
+                            f.write(contenido)
+                            
+                        stats['archivos_por_tipo'][tipo_archivo] += 1
+                        if tipo_archivo == 'xml': stats['xml_descargados'] += 1
+                        if tipo_archivo == 'cdr': stats['cdr_descargados'] += 1
+                        
+                        tipos_encontrados[tipo_archivo] = True
+                        archivos_descargados_guia += 1
+                        
                         if mostrar_detalle:
-                            print(f"   ⚠️  Error XML: {str(e)[:50]}")
+                            print(f"   ✅ {tipo_archivo.upper()}: {nombre_final}")
+                            
+                except Exception as e:
+                    stats['errores'] += 1
+                    analisis_problemas['errores_descarga'].append({
+                        'nombre': numero_doc,
+                        'archivo': nombre_archivo,
+                        'error': str(e)[:100]
+                    })
         
+        # Análisis final de la guía
+        if archivos_descargados_guia > 0:
+            analisis_problemas['comprobantes_ok'].append({
+                'nombre': numero_doc,
+                'archivos': archivos_descargados_guia
+            })
+            
+        if not tipos_encontrados['xml']:
+            stats['sin_xml'] += 1
+            analisis_problemas['sin_xml'].append({
+                'nombre': numero_doc,
+                'fecha': fecha,
+                'id': guia_id
+            })
+            
+        if not tipos_encontrados['cdr']:
+            analisis_problemas['sin_cdr'].append({
+                'nombre': numero_doc,
+                'fecha': fecha,
+                'id': guia_id
+            })
+            
+        if adjuntos_vacios_guia > 0:
+            analisis_problemas['adjuntos_vacios'].append({
+                'nombre': numero_doc,
+                'cantidad': adjuntos_vacios_guia
+            })
+
         if idx % 100 == 0:
-            total_pdfs = stats['pdf_descargados'] + stats['pdf_generados']
             print(f"\n   💾 Progreso: {idx}/{len(guias)}")
-            print(f"   📊 PDFs: {total_pdfs} (descargados: {stats['pdf_descargados']}, generados: {stats['pdf_generados']}) | XMLs: {stats['xml_descargados']}")
+            print(f"   📊 XMLs: {stats['xml_descargados']} | CDRs: {stats['cdr_descargados']}")
+    
+    # Mostrar análisis al final
+    mostrar_analisis_problemas(analisis_problemas)
     
     return stats
+
+
+def guardar_resumen_consolidado(analisis, total_problemas):
+    """Guardar resumen consolidado de todos los problemas"""
+    try:
+        # Crear carpeta de logs si no existe en la raíz del mes (compartida con facturas)
+        carpeta_logs = Path(BASE_PATH_RAIZ) / "Resumen de errores"
+        carpeta_logs.mkdir(parents=True, exist_ok=True)
+        
+        ruta_archivo = carpeta_logs / "RESUMEN_COMPLETO_PROBLEMAS_GUIAS_XML.txt"
+        with open(ruta_archivo, 'w', encoding='utf-8') as f:
+            f.write(f"{'#'*70}\n")
+            f.write(f"# RESUMEN CONSOLIDADO - DESCARGA XML GUIAS\n")
+            f.write(f"{'#'*70}\n")
+            f.write(f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Período: {FECHA_INICIO} al {FECHA_FIN} ({nombre_mes} {AÑO})\n")
+            f.write(f"Ambiente: {AMBIENTE.upper()}\n")
+            f.write(f"{'#'*70}\n\n")
+            
+            # Resumen ejecutivo
+            f.write("="*70 + "\n")
+            f.write("RESUMEN EJECUTIVO\n")
+            f.write("="*70 + "\n")
+            f.write(f"Total de problemas encontrados: {total_problemas}\n\n")
+            
+            f.write(f"❌ Comprobantes sin adjuntos:    {len(analisis['sin_adjuntos'])}\n")
+            f.write(f"⚠️  Adjuntos vacíos:              {len(analisis['adjuntos_vacios'])}\n")
+            f.write(f"📋 Comprobantes sin XML:         {len(analisis['sin_xml'])}\n")
+            f.write(f"✅ Comprobantes sin CDR:         {len(analisis['sin_cdr'])}\n")
+            f.write(f"❌ Errores de descarga:          {len(analisis['errores_descarga'])}\n")
+            f.write(f"✅ Comprobantes OK:              {len(analisis['comprobantes_ok'])}\n")
+            f.write("\n")
+            
+            # Archivos de detalle generados
+            f.write("="*70 + "\n")
+            f.write("ARCHIVOS DE DETALLE GENERADOS\n")
+            f.write("="*70 + "\n")
+            if analisis['sin_adjuntos']:
+                f.write(f"• ANALISIS_sin_adjuntos_guias.txt      ({len(analisis['sin_adjuntos'])} registros)\n")
+            if analisis['adjuntos_vacios']:
+                f.write(f"• ANALISIS_adjuntos_vacios_guias.txt   ({len(analisis['adjuntos_vacios'])} registros)\n")
+            if analisis['sin_xml']:
+                f.write(f"• ANALISIS_sin_xml_guias.txt           ({len(analisis['sin_xml'])} registros)\n")
+            if analisis['sin_cdr']:
+                f.write(f"• ANALISIS_sin_cdr_guias.txt           ({len(analisis['sin_cdr'])} registros)\n")
+            if analisis['errores_descarga']:
+                f.write(f"• ANALISIS_errores_descarga_guias.txt  ({len(analisis['errores_descarga'])} registros)\n")
+            f.write("\n")
+            
+            # IDs de Odoo para búsqueda directa
+            if analisis['sin_adjuntos'] or analisis['sin_xml']:
+                f.write("="*70 + "\n")
+                f.write("IDs DE ODOO PARA BÚSQUEDA DIRECTA\n")
+                f.write("="*70 + "\n\n")
+                
+                if analisis['sin_adjuntos']:
+                    f.write("SIN ADJUNTOS (IDs para buscar en Odoo):\n")
+                    ids = [str(item['id']) for item in analisis['sin_adjuntos'][:20]]
+                    f.write(", ".join(ids))
+                    if len(analisis['sin_adjuntos']) > 20:
+                        f.write(f"... y {len(analisis['sin_adjuntos']) - 20} más")
+                    f.write("\n\n")
+        
+        print(f"   📊 Resumen consolidado guardado en: {carpeta_logs}/RESUMEN_COMPLETO_PROBLEMAS_GUIAS_XML.txt")
+        
+    except Exception as e:
+        print(f"   ⚠️  No se pudo guardar resumen consolidado: {e}")
+
+
+def guardar_lista_problemas(tipo, lista):
+    """Guardar lista de problemas en archivo de texto"""
+    try:
+        # Crear carpeta de logs si no existe
+        carpeta_logs = Path(BASE_PATH_RAIZ) / "Resumen de errores"
+        carpeta_logs.mkdir(parents=True, exist_ok=True)
+        
+        ruta_archivo = carpeta_logs / f"ANALISIS_{tipo}_guias.txt"
+        with open(ruta_archivo, 'w', encoding='utf-8') as f:
+            f.write(f"{'='*70}\n")
+            f.write(f"ANÁLISIS DE PROBLEMAS: {tipo.upper().replace('_', ' ')}\n")
+            f.write(f"{'='*70}\n")
+            f.write(f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Total de problemas: {len(lista)}\n")
+            f.write(f"{'='*70}\n\n")
+            
+            for idx, item in enumerate(lista, 1):
+                f.write(f"[{idx}] Guía: {item['nombre']}\n")
+                if 'id' in item: f.write(f"    ID Odoo: {item['id']}\n")
+                if 'fecha' in item: f.write(f"    Fecha: {item['fecha']}\n")
+                if 'error' in item: f.write(f"    Error: {item['error']}\n")
+                f.write("\n")
+            
+    except Exception as e:
+        print(f"   ⚠️  No se pudo guardar archivo de análisis: {e}")
+
+
+def mostrar_analisis_problemas(analisis):
+    """Mostrar análisis detallado de problemas encontrados"""
+    print(f"\n{'='*70}")
+    print("🔍 ANÁLISIS DETALLADO DE PROBLEMAS")
+    print(f"{'='*70}")
+    
+    total_problemas = (
+        len(analisis['sin_adjuntos']) + 
+        len(analisis['adjuntos_vacios']) + 
+        len(analisis['sin_xml']) + 
+        len(analisis['sin_cdr']) + 
+        len(analisis['errores_descarga'])
+    )
+    
+    if total_problemas == 0:
+        print("✅ No se encontraron problemas - Todas las guías OK")
+        return
+    
+    print(f"\n⚠️  Se encontraron {total_problemas} problemas en total:\n")
+    
+    if analisis['sin_adjuntos']:
+        print(f"❌ SIN ADJUNTOS ({len(analisis['sin_adjuntos'])} guías)")
+        guardar_lista_problemas('sin_adjuntos', analisis['sin_adjuntos'])
+
+    if analisis['sin_xml']:
+        print(f"📋 SIN XML ({len(analisis['sin_xml'])} guías)")
+        guardar_lista_problemas('sin_xml', analisis['sin_xml'])
+
+    if analisis['errores_descarga']:
+        print(f"❌ ERRORES DE DESCARGA ({len(analisis['errores_descarga'])} guías)")
+        guardar_lista_problemas('errores_descarga', analisis['errores_descarga'])
+
+    # Generar resumen consolidado
+    guardar_resumen_consolidado(analisis, total_problemas)
+    print(f"{'='*70}\n")
 
 
 def mostrar_resumen(stats):
@@ -486,17 +722,13 @@ def mostrar_resumen(stats):
     print("📊 RESUMEN FINAL")
     print(f"{'='*70}")
     print(f"📦 Total de guías procesadas: {stats['total']}")
-    print(f"\n📄 Archivos PDF:")
-    print(f"   • PDFs descargados (e-Guía AGR): {stats['pdf_descargados']}")
-    print(f"   • PDFs generados dinámicamente: {stats['pdf_generados']}")
-    print(f"   • TOTAL PDFs: {stats['pdf_descargados'] + stats['pdf_generados']}")
-    print(f"   • Sin PDF: {stats['sin_pdf']}")
-    print(f"\n📄 Archivos XML:")
+    print(f"\n📄 Archivos XML/CDR:")
     print(f"   • XMLs descargados: {stats['xml_descargados']}")
+    print(f"   • CDRs descargados: {stats['cdr_descargados']}")
     print(f"\n❌ Errores: {stats['errores']}")
     print(f"\n📂 Ubicación: {BASE_PATH}")
-    print(f"   • Carpeta PDF: {Path(BASE_PATH) / 'pdf'}")
     print(f"   • Carpeta XML: {Path(BASE_PATH) / 'xml'}")
+    print(f"   • Carpeta CDR: {Path(BASE_PATH) / 'cdr'}")
     print(f"{'='*70}\n")
 
 

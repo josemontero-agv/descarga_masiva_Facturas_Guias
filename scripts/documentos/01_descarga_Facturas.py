@@ -8,6 +8,8 @@ import xmlrpc.client
 import os
 import base64
 import sys
+import zipfile
+import io
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
@@ -28,7 +30,7 @@ if sys.platform == 'win32':
 # CONFIGURACIÓN DE AMBIENTE
 # ============================================
 # Cambiar entre "desarrollo" y "produccion"
-AMBIENTE = "desarrollo"  # ← CAMBIAR AQUÍ: "desarrollo" o "produccion"
+AMBIENTE = "produccion"  # ← CAMBIAR AQUÍ: "desarrollo" o "produccion"
 
 # Cargar variables de entorno según ambiente
 env_file = f'.env.{AMBIENTE}'
@@ -83,21 +85,32 @@ FECHA_FIN = f"{AÑO}-{MES:02d}-{ultimo_dia}"
 
 # Obtener nombre del mes
 nombre_mes = datetime(AÑO, MES, 1).strftime('%B')
+nombre_carpeta_mes = f"{MES:02d}_{nombre_mes}"
 
-# Ruta base de descarga (PRODUCCIÓN)
-BASE_PATH = rf"Y:\Finanzas y Contabilidad\Créditos y Cobranzas\José Montero\Descarga_Masiva_FT_GUIA\{AÑO}\{MES:02d}_{nombre_mes}"
-
-# Verificar acceso a la ruta de red
-if not Path(BASE_PATH).parent.parent.exists():
-    print(f"❌ Error: No se puede acceder a la ruta de red:")
+# Definir rutas según ambiente
+if AMBIENTE == "produccion":
+    # Ruta base de descarga (PRODUCCIÓN)
+    BASE_PATH = rf"Y:\Finanzas y Contabilidad\Créditos y Cobranzas\José Montero\Descarga_Masiva_FT_GUIA\{AÑO}\{nombre_carpeta_mes}"
+    
+    # Verificar acceso a la ruta de red
+    if not Path(BASE_PATH).parent.parent.exists():
+        print(f"❌ Error: No se puede acceder a la ruta de red:")
+        print(f"   {BASE_PATH}")
+        print(f"💡 Verifica que:")
+        print(f"   1. La unidad Y: esté mapeada correctamente")
+        print(f"   2. Tengas permisos de escritura en la carpeta")
+        print(f"   3. Estés conectado a la red de la empresa")
+        respuesta = input("\n¿Continuar de todas formas? (s/n): ")
+        if respuesta.lower() != 's':
+            exit(1)
+else:
+    # Ruta base de descarga (DESARROLLO)
+    BASE_PATH = project_root / "Prueba_Octubre" / nombre_carpeta_mes
+    print(f"🔧 MODO DESARROLLO: Guardando en ruta local:")
     print(f"   {BASE_PATH}")
-    print(f"💡 Verifica que:")
-    print(f"   1. La unidad Y: esté mapeada correctamente")
-    print(f"   2. Tengas permisos de escritura en la carpeta")
-    print(f"   3. Estés conectado a la red de la empresa")
-    respuesta = input("\n¿Continuar de todas formas? (s/n): ")
-    if respuesta.lower() != 's':
-        exit(1)
+
+# Crear carpeta raíz si no existe
+Path(BASE_PATH).mkdir(parents=True, exist_ok=True)
 
 # Mapeo de tipos de documentos a carpetas
 MAPEO_CARPETAS = {
@@ -315,6 +328,8 @@ def clasificar_archivo(nombre_archivo):
     
     if nombre_lower.endswith('.pdf'):
         return 'pdf'
+    elif nombre_lower.endswith('.zip'):
+        return 'zip'
     elif nombre_lower.endswith('.xml'):
         if 'cdr' in nombre_lower or 'constancia' in nombre_lower:
             return 'cdr'
@@ -417,33 +432,74 @@ def descargar_comprobantes(uid, models, comprobantes, tipo_doc_ids):
             if not tipo_archivo:
                 continue
             
-            # Construir ruta de destino
-            ruta_carpeta = Path(BASE_PATH) / carpeta_destino / tipo_archivo
-            
-            # Limpiar nombre de archivo para evitar caracteres inválidos
-            nombre_limpio = move_name.replace('/', '-').replace('\\', '-')
-            extension = nombre_archivo.split('.')[-1]
-            nombre_final = f"{nombre_limpio}_{tipo_archivo}.{extension}"
-            
-            ruta_archivo = ruta_carpeta / nombre_final
+            # Construir ruta de destino base (se usará si no es ZIP)
+            carpeta_destino_final = carpeta_destino
             
             try:
-                # Decodificar y guardar archivo
+                # Decodificar contenido
                 contenido = base64.b64decode(datas)
-                with open(ruta_archivo, 'wb') as f:
-                    f.write(contenido)
                 
-                print(f"      ✅ {tipo_archivo.upper()}: {nombre_final}")
-                archivos_descargados += 1
-                estadisticas['archivos_por_tipo'][tipo_archivo] += 1
-                tipos_encontrados[tipo_archivo] = True
+                # Manejo especial para ZIP
+                if tipo_archivo == 'zip':
+                    try:
+                        with zipfile.ZipFile(io.BytesIO(contenido)) as z:
+                            for filename in z.namelist():
+                                # Clasificar archivo interno
+                                tipo_interno = clasificar_archivo(filename)
+                                
+                                if not tipo_interno or tipo_interno == 'zip':
+                                    continue
+                                
+                                # Definir ruta destino para archivo interno
+                                ruta_carpeta = Path(BASE_PATH) / carpeta_destino / tipo_interno
+                                
+                                # Construir nombre final
+                                nombre_limpio = move_name.replace('/', '-').replace('\\', '-')
+                                extension_interna = filename.split('.')[-1]
+                                nombre_final = f"{nombre_limpio}_{tipo_interno}.{extension_interna}"
+                                
+                                ruta_archivo = ruta_carpeta / nombre_final
+                                
+                                # Extraer y guardar
+                                with open(ruta_archivo, 'wb') as f:
+                                    f.write(z.read(filename))
+                                
+                                print(f"      📦 ZIP -> ✅ {tipo_interno.upper()}: {nombre_final}")
+                                
+                                # Actualizar contadores
+                                archivos_descargados += 1
+                                estadisticas['archivos_por_tipo'][tipo_interno] += 1
+                                tipos_encontrados[tipo_interno] = True
+                                
+                    except Exception as e:
+                        print(f"      ❌ Error procesando ZIP {nombre_archivo}: {e}")
+                        # No contamos como error general para no detener flujo, pero avisamos
+                
+                else:
+                    # Proceso normal para archivos no ZIP
+                    ruta_carpeta = Path(BASE_PATH) / carpeta_destino / tipo_archivo
+                    
+                    # Limpiar nombre de archivo para evitar caracteres inválidos
+                    nombre_limpio = move_name.replace('/', '-').replace('\\', '-')
+                    extension = nombre_archivo.split('.')[-1]
+                    nombre_final = f"{nombre_limpio}_{tipo_archivo}.{extension}"
+                    
+                    ruta_archivo = ruta_carpeta / nombre_final
+                    
+                    with open(ruta_archivo, 'wb') as f:
+                        f.write(contenido)
+                    
+                    print(f"      ✅ {tipo_archivo.upper()}: {nombre_final}")
+                    archivos_descargados += 1
+                    estadisticas['archivos_por_tipo'][tipo_archivo] += 1
+                    tipos_encontrados[tipo_archivo] = True
                 
             except Exception as e:
                 print(f"      ❌ Error guardando {tipo_archivo}: {e}")
                 estadisticas['errores'] += 1
                 analisis_problemas['errores_descarga'].append({
                     'nombre': move_name,
-                    'archivo': nombre_final,
+                    'archivo': nombre_archivo,
                     'error': str(e)[:100]
                 })
         
@@ -532,7 +588,7 @@ def mostrar_analisis_problemas(analisis):
         
         # Guardar lista completa en archivo
         guardar_lista_problemas('sin_adjuntos', analisis['sin_adjuntos'])
-        print(f"   💾 Lista completa guardada en: {BASE_PATH}/ANALISIS_sin_adjuntos.txt")
+        print(f"   💾 Lista completa guardada en: {BASE_PATH}/Resumen de errores/ANALISIS_sin_adjuntos.txt")
         print()
     
     # 2. Adjuntos vacíos
@@ -550,7 +606,7 @@ def mostrar_analisis_problemas(analisis):
             print(f"      ... y {len(analisis['adjuntos_vacios']) - 5} más")
         
         guardar_lista_problemas('adjuntos_vacios', analisis['adjuntos_vacios'])
-        print(f"   💾 Lista guardada en: {BASE_PATH}/ANALISIS_adjuntos_vacios.txt")
+        print(f"   💾 Lista guardada en: {BASE_PATH}/Resumen de errores/ANALISIS_adjuntos_vacios.txt")
         print()
     
     # 3. Sin PDF
@@ -568,7 +624,7 @@ def mostrar_analisis_problemas(analisis):
             print(f"      ... y {len(analisis['sin_pdf']) - 3} más")
         
         guardar_lista_problemas('sin_pdf', analisis['sin_pdf'])
-        print(f"   💾 Lista guardada en: {BASE_PATH}/ANALISIS_sin_pdf.txt")
+        print(f"   💾 Lista guardada en: {BASE_PATH}/Resumen de errores/ANALISIS_sin_pdf.txt")
         print()
     
     # 4. Sin XML
@@ -583,7 +639,7 @@ def mostrar_analisis_problemas(analisis):
             print(f"      ... y {len(analisis['sin_xml']) - 3} más")
         
         guardar_lista_problemas('sin_xml', analisis['sin_xml'])
-        print(f"   💾 Lista guardada en: {BASE_PATH}/ANALISIS_sin_xml.txt")
+        print(f"   💾 Lista guardada en: {BASE_PATH}/Resumen de errores/ANALISIS_sin_xml.txt")
         print()
     
     # 5. Sin CDR
@@ -594,7 +650,7 @@ def mostrar_analisis_problemas(analisis):
         print(f"         o comprobantes aún no confirmados por SUNAT")
         
         guardar_lista_problemas('sin_cdr', analisis['sin_cdr'])
-        print(f"   💾 Lista guardada en: {BASE_PATH}/ANALISIS_sin_cdr.txt")
+        print(f"   💾 Lista guardada en: {BASE_PATH}/Resumen de errores/ANALISIS_sin_cdr.txt")
         print()
     
     # 6. Errores de descarga
@@ -612,7 +668,7 @@ def mostrar_analisis_problemas(analisis):
             print(f"        Error: {err['error']}")
         
         guardar_lista_problemas('errores_descarga', analisis['errores_descarga'])
-        print(f"   💾 Lista guardada en: {BASE_PATH}/ANALISIS_errores_descarga.txt")
+        print(f"   💾 Lista guardada en: {BASE_PATH}/Resumen de errores/ANALISIS_errores_descarga.txt")
         print()
     
     # 7. Generar resumen consolidado
@@ -624,7 +680,11 @@ def mostrar_analisis_problemas(analisis):
 def guardar_resumen_consolidado(analisis, total_problemas):
     """Guardar resumen consolidado de todos los problemas"""
     try:
-        ruta_archivo = Path(BASE_PATH) / "RESUMEN_COMPLETO_PROBLEMAS.txt"
+        # Crear carpeta de logs si no existe
+        carpeta_logs = Path(BASE_PATH) / "Resumen de errores"
+        carpeta_logs.mkdir(parents=True, exist_ok=True)
+        
+        ruta_archivo = carpeta_logs / "RESUMEN_COMPLETO_PROBLEMAS_FACTURAS.txt"
         with open(ruta_archivo, 'w', encoding='utf-8') as f:
             f.write(f"{'#'*70}\n")
             f.write(f"# RESUMEN CONSOLIDADO - ANÁLISIS DE DESCARGA\n")
@@ -741,7 +801,7 @@ def guardar_resumen_consolidado(analisis, total_problemas):
                         f.write(f"... y {len(analisis['sin_adjuntos']) - 20} más")
                     f.write("\n\n")
         
-        print(f"   📊 Resumen consolidado guardado en: {BASE_PATH}/RESUMEN_COMPLETO_PROBLEMAS.txt")
+        print(f"   📊 Resumen consolidado guardado en: {carpeta_logs}/RESUMEN_COMPLETO_PROBLEMAS_FACTURAS.txt")
         
     except Exception as e:
         print(f"   ⚠️  No se pudo guardar resumen consolidado: {e}")
@@ -750,7 +810,11 @@ def guardar_resumen_consolidado(analisis, total_problemas):
 def guardar_lista_problemas(tipo, lista):
     """Guardar lista de problemas en archivo de texto"""
     try:
-        ruta_archivo = Path(BASE_PATH) / f"ANALISIS_{tipo}.txt"
+        # Crear carpeta de logs si no existe
+        carpeta_logs = Path(BASE_PATH) / "Resumen de errores"
+        carpeta_logs.mkdir(parents=True, exist_ok=True)
+        
+        ruta_archivo = carpeta_logs / f"ANALISIS_{tipo}.txt"
         with open(ruta_archivo, 'w', encoding='utf-8') as f:
             f.write(f"{'='*70}\n")
             f.write(f"ANÁLISIS DE PROBLEMAS: {tipo.upper().replace('_', ' ')}\n")
