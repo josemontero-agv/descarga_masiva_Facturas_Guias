@@ -75,7 +75,7 @@ if not all([ODOO_URL, ODOO_DB, ODOO_USER, ODOO_PASSWORD]):
 
 # Configuración de fechas - Cambiar aquí el año y mes que deseas descargar
 AÑO = 2025  # ← CAMBIAR AQUÍ EL AÑO
-MES = 11    # ← CAMBIAR AQUÍ EL MES (1-12) - Para ejecutar en paralelo, cambiar el mes
+MES = 12    # ← CAMBIAR AQUÍ EL MES (1-12) - Para ejecutar en paralelo, cambiar el mes
 
 # Calcular fechas automáticamente
 from calendar import monthrange
@@ -90,7 +90,7 @@ nombre_carpeta_mes = f"{MES:02d}_{nombre_mes}"
 # Definir rutas según ambiente
 if AMBIENTE == "produccion":
     # Ruta base de descarga (PRODUCCIÓN)
-    BASE_PATH = rf"Y:\Finanzas y Contabilidad\Créditos y Cobranzas\José Montero\Descarga_Masiva_FT_GUIA\{AÑO}\{nombre_carpeta_mes}"
+    BASE_PATH = rf"V:\{AÑO}\{nombre_carpeta_mes}"
     
     # Verificar acceso a la ruta de red
     if not Path(BASE_PATH).parent.parent.exists():
@@ -156,16 +156,14 @@ def conectar_odoo():
 
 
 def crear_estructura_carpetas():
-    """Crear la estructura de carpetas para cada tipo de documento"""
-    print(f"\n{'='*70}")
-    print("📁 CREANDO ESTRUCTURA DE CARPETAS")
-    print(f"{'='*70}")
+    """
+    DEPRECADO: Esta función ya no se usa porque los archivos se guardan
+    directamente en la estructura con diarios: {Mes}/{Diario}/{TipoDocumento}/{TipoArchivo}/
     
-    for doc_tipo, carpeta_doc in MAPEO_CARPETAS.items():
-        for tipo_archivo in ['pdf', 'xml', 'cdr']:
-            ruta = Path(BASE_PATH) / carpeta_doc / tipo_archivo
-            ruta.mkdir(parents=True, exist_ok=True)
-            print(f"✅ Creada: {ruta}")
+    Las carpetas se crean automáticamente al guardar archivos con la ruta completa.
+    """
+    # Función deshabilitada - las carpetas se crean automáticamente al guardar archivos
+    pass
 
 
 def obtener_tipos_documento(uid, models):
@@ -274,7 +272,7 @@ def obtener_comprobantes(uid, models, tipo_doc_ids):
             {
                 'fields': [
                     'id', 'name', 'invoice_date', 'l10n_latam_document_type_id',
-                    'partner_id', 'amount_total', 'state'
+                    'partner_id', 'amount_total', 'state', 'journal_id'
                 ],
                 'order': 'invoice_date asc'
             }
@@ -365,6 +363,7 @@ def descargar_comprobantes(uid, models, comprobantes, tipo_doc_ids):
         'sin_xml': [],                # Tienen adjuntos pero no XML
         'sin_cdr': [],                # Tienen adjuntos pero no CDR
         'errores_descarga': [],       # Errores al guardar archivos
+        'errores_pdf': [],            # Errores específicos al extraer/guardar PDFs
         'comprobantes_ok': []         # Comprobantes descargados correctamente
     }
     
@@ -388,12 +387,22 @@ def descargar_comprobantes(uid, models, comprobantes, tipo_doc_ids):
                     tipo_doc_nombre = tipo_key
                     break
         
-        carpeta_destino = MAPEO_CARPETAS.get(tipo_doc_nombre, '01_Facturas')
+        # Obtener nombre del diario y limpiarlo
+        diario_data = comp.get('journal_id')
+        nombre_diario = diario_data[1] if diario_data else 'Sin_Diario'
+        # Limpiar caracteres no válidos para carpetas
+        nombre_diario_limpio = "".join([c if c.isalnum() or c in (' ', '-', '_', '.') else '_' for c in nombre_diario]).strip()
+        
+        # Definir ruta relativa: Diario / Tipo_Documento
+        # Ejemplo: "F110 (Venta nacional)" / "01_Facturas"
+        carpeta_base_tipo = MAPEO_CARPETAS.get(tipo_doc_nombre, '01_Facturas')
+        carpeta_destino_relativa = Path(nombre_diario_limpio) / carpeta_base_tipo
         
         print(f"\n[{idx}/{len(comprobantes)}] 📄 {move_name}")
         print(f"   📅 Fecha: {fecha}")
         print(f"   👤 Cliente: {partner_name[:50]}...")
         print(f"   📂 Tipo: {tipo_doc_nombre}")
+        print(f"   📓 Diario: {nombre_diario}")
         
         # Obtener adjuntos
         adjuntos = obtener_adjuntos(uid, models, move_id, move_name)
@@ -433,7 +442,7 @@ def descargar_comprobantes(uid, models, comprobantes, tipo_doc_ids):
                 continue
             
             # Construir ruta de destino base (se usará si no es ZIP)
-            carpeta_destino_final = carpeta_destino
+            # Nota: la estructura ahora incluye el diario en carpeta_destino_relativa
             
             try:
                 # Decodificar contenido
@@ -450,8 +459,9 @@ def descargar_comprobantes(uid, models, comprobantes, tipo_doc_ids):
                                 if not tipo_interno or tipo_interno == 'zip':
                                     continue
                                 
-                                # Definir ruta destino para archivo interno
-                                ruta_carpeta = Path(BASE_PATH) / carpeta_destino / tipo_interno
+                                # Definir ruta destino para archivo interno (incluye Diario)
+                                ruta_carpeta = Path(BASE_PATH) / carpeta_destino_relativa / tipo_interno
+                                ruta_carpeta.mkdir(parents=True, exist_ok=True)
                                 
                                 # Construir nombre final
                                 nombre_limpio = move_name.replace('/', '-').replace('\\', '-')
@@ -460,16 +470,34 @@ def descargar_comprobantes(uid, models, comprobantes, tipo_doc_ids):
                                 
                                 ruta_archivo = ruta_carpeta / nombre_final
                                 
-                                # Extraer y guardar
-                                with open(ruta_archivo, 'wb') as f:
-                                    f.write(z.read(filename))
-                                
-                                print(f"      📦 ZIP -> ✅ {tipo_interno.upper()}: {nombre_final}")
-                                
-                                # Actualizar contadores
-                                archivos_descargados += 1
-                                estadisticas['archivos_por_tipo'][tipo_interno] += 1
-                                tipos_encontrados[tipo_interno] = True
+                                # Extraer y guardar con manejo específico de errores para PDFs
+                                try:
+                                    with open(ruta_archivo, 'wb') as f:
+                                        f.write(z.read(filename))
+                                    
+                                    print(f"      📦 ZIP -> ✅ {tipo_interno.upper()}: {nombre_final}")
+                                    
+                                    # Actualizar contadores
+                                    archivos_descargados += 1
+                                    estadisticas['archivos_por_tipo'][tipo_interno] += 1
+                                    tipos_encontrados[tipo_interno] = True
+                                    
+                                except Exception as e_pdf:
+                                    # Si es un PDF, registrar en errores_pdf específicamente
+                                    if tipo_interno == 'pdf':
+                                        print(f"      ❌ Error extrayendo PDF del ZIP: {nombre_final} - {e_pdf}")
+                                        analisis_problemas['errores_pdf'].append({
+                                            'nombre': move_name,
+                                            'archivo': filename,
+                                            'archivo_zip': nombre_archivo,
+                                            'error': str(e_pdf)[:100],
+                                            'origen': 'zip',
+                                            'fecha': fecha,
+                                            'id': move_id
+                                        })
+                                    else:
+                                        # Para otros tipos, solo mostrar error pero no detener flujo
+                                        print(f"      ❌ Error extrayendo {tipo_interno} del ZIP: {nombre_final} - {e_pdf}")
                                 
                     except Exception as e:
                         print(f"      ❌ Error procesando ZIP {nombre_archivo}: {e}")
@@ -477,7 +505,8 @@ def descargar_comprobantes(uid, models, comprobantes, tipo_doc_ids):
                 
                 else:
                     # Proceso normal para archivos no ZIP
-                    ruta_carpeta = Path(BASE_PATH) / carpeta_destino / tipo_archivo
+                    ruta_carpeta = Path(BASE_PATH) / carpeta_destino_relativa / tipo_archivo
+                    ruta_carpeta.mkdir(parents=True, exist_ok=True)
                     
                     # Limpiar nombre de archivo para evitar caracteres inválidos
                     nombre_limpio = move_name.replace('/', '-').replace('\\', '-')
@@ -560,7 +589,8 @@ def mostrar_analisis_problemas(analisis):
         len(analisis['sin_pdf']) + 
         len(analisis['sin_xml']) + 
         len(analisis['sin_cdr']) + 
-        len(analisis['errores_descarga'])
+        len(analisis['errores_descarga']) +
+        len(analisis['errores_pdf'])
     )
     
     if total_problemas == 0:
@@ -606,7 +636,7 @@ def mostrar_analisis_problemas(analisis):
             print(f"      ... y {len(analisis['adjuntos_vacios']) - 5} más")
         
         guardar_lista_problemas('adjuntos_vacios', analisis['adjuntos_vacios'])
-        print(f"   💾 Lista guardada en: {BASE_PATH}/Resumen de errores/ANALISIS_adjuntos_vacios.txt")
+        print(f"   💾 Lista guardada en: {BASE_PATH}/Resumen de errores/FACTURAS_ANALISIS_adjuntos_vacios.txt")
         print()
     
     # 3. Sin PDF
@@ -624,7 +654,31 @@ def mostrar_analisis_problemas(analisis):
             print(f"      ... y {len(analisis['sin_pdf']) - 3} más")
         
         guardar_lista_problemas('sin_pdf', analisis['sin_pdf'])
-        print(f"   💾 Lista guardada en: {BASE_PATH}/Resumen de errores/ANALISIS_sin_pdf.txt")
+        print(f"   💾 Lista guardada en: {BASE_PATH}/Resumen de errores/FACTURAS_ANALISIS_sin_pdf.txt")
+        print()
+    
+    # 3.5. Errores de extracción de PDF
+    if analisis['errores_pdf']:
+        print(f"📄 ERRORES AL EXTRAER PDF ({len(analisis['errores_pdf'])} archivos):")
+        print(f"   Motivo: Error al extraer o guardar archivos PDF")
+        print(f"   Posibles causas:")
+        print(f"   - PDF corrupto en el ZIP")
+        print(f"   - Permisos insuficientes para guardar PDF")
+        print(f"   - Disco lleno")
+        print(f"   - Caracteres inválidos en nombre de archivo PDF")
+        
+        for err in analisis['errores_pdf'][:5]:
+            origen_texto = "desde ZIP" if err.get('origen') == 'zip' else "directo"
+            archivo_mostrar = err.get('archivo_zip', err.get('archivo', 'N/A'))
+            print(f"      • {err['nombre']}")
+            print(f"        Archivo: {archivo_mostrar} ({origen_texto})")
+            print(f"        Error: {err['error']}")
+        
+        if len(analisis['errores_pdf']) > 5:
+            print(f"      ... y {len(analisis['errores_pdf']) - 5} más")
+        
+        guardar_lista_problemas('errores_pdf', analisis['errores_pdf'])
+        print(f"   💾 Lista guardada en: {BASE_PATH}/Resumen de errores/FACTURAS_ANALISIS_errores_pdf.txt")
         print()
     
     # 4. Sin XML
@@ -639,7 +693,7 @@ def mostrar_analisis_problemas(analisis):
             print(f"      ... y {len(analisis['sin_xml']) - 3} más")
         
         guardar_lista_problemas('sin_xml', analisis['sin_xml'])
-        print(f"   💾 Lista guardada en: {BASE_PATH}/Resumen de errores/ANALISIS_sin_xml.txt")
+        print(f"   💾 Lista guardada en: {BASE_PATH}/Resumen de errores/FACTURAS_ANALISIS_sin_xml.txt")
         print()
     
     # 5. Sin CDR
@@ -668,7 +722,7 @@ def mostrar_analisis_problemas(analisis):
             print(f"        Error: {err['error']}")
         
         guardar_lista_problemas('errores_descarga', analisis['errores_descarga'])
-        print(f"   💾 Lista guardada en: {BASE_PATH}/Resumen de errores/ANALISIS_errores_descarga.txt")
+        print(f"   💾 Lista guardada en: {BASE_PATH}/Resumen de errores/FACTURAS_ANALISIS_errores_descarga.txt")
         print()
     
     # 7. Generar resumen consolidado
@@ -684,7 +738,7 @@ def guardar_resumen_consolidado(analisis, total_problemas):
         carpeta_logs = Path(BASE_PATH) / "Resumen de errores"
         carpeta_logs.mkdir(parents=True, exist_ok=True)
         
-        ruta_archivo = carpeta_logs / "RESUMEN_COMPLETO_PROBLEMAS_FACTURAS.txt"
+        ruta_archivo = carpeta_logs / "FACTURAS_RESUMEN_COMPLETO_PROBLEMAS.txt"
         with open(ruta_archivo, 'w', encoding='utf-8') as f:
             f.write(f"{'#'*70}\n")
             f.write(f"# RESUMEN CONSOLIDADO - ANÁLISIS DE DESCARGA\n")
@@ -706,6 +760,7 @@ def guardar_resumen_consolidado(analisis, total_problemas):
             f.write(f"📋 Comprobantes sin XML:         {len(analisis['sin_xml'])}\n")
             f.write(f"✅ Comprobantes sin CDR:         {len(analisis['sin_cdr'])}\n")
             f.write(f"❌ Errores de descarga:          {len(analisis['errores_descarga'])}\n")
+            f.write(f"📄 Errores al extraer PDF:       {len(analisis['errores_pdf'])}\n")
             f.write(f"✅ Comprobantes OK:              {len(analisis['comprobantes_ok'])}\n")
             f.write("\n")
             
@@ -714,17 +769,19 @@ def guardar_resumen_consolidado(analisis, total_problemas):
             f.write("ARCHIVOS DE DETALLE GENERADOS\n")
             f.write("="*70 + "\n")
             if analisis['sin_adjuntos']:
-                f.write(f"• ANALISIS_sin_adjuntos.txt      ({len(analisis['sin_adjuntos'])} registros)\n")
+                f.write(f"• FACTURAS_ANALISIS_sin_adjuntos.txt      ({len(analisis['sin_adjuntos'])} registros)\n")
             if analisis['adjuntos_vacios']:
-                f.write(f"• ANALISIS_adjuntos_vacios.txt   ({len(analisis['adjuntos_vacios'])} registros)\n")
+                f.write(f"• FACTURAS_ANALISIS_adjuntos_vacios.txt   ({len(analisis['adjuntos_vacios'])} registros)\n")
             if analisis['sin_pdf']:
-                f.write(f"• ANALISIS_sin_pdf.txt           ({len(analisis['sin_pdf'])} registros)\n")
+                f.write(f"• FACTURAS_ANALISIS_sin_pdf.txt           ({len(analisis['sin_pdf'])} registros)\n")
             if analisis['sin_xml']:
-                f.write(f"• ANALISIS_sin_xml.txt           ({len(analisis['sin_xml'])} registros)\n")
+                f.write(f"• FACTURAS_ANALISIS_sin_xml.txt           ({len(analisis['sin_xml'])} registros)\n")
             if analisis['sin_cdr']:
-                f.write(f"• ANALISIS_sin_cdr.txt           ({len(analisis['sin_cdr'])} registros)\n")
+                f.write(f"• FACTURAS_ANALISIS_sin_cdr.txt           ({len(analisis['sin_cdr'])} registros)\n")
             if analisis['errores_descarga']:
-                f.write(f"• ANALISIS_errores_descarga.txt  ({len(analisis['errores_descarga'])} registros)\n")
+                f.write(f"• FACTURAS_ANALISIS_errores_descarga.txt  ({len(analisis['errores_descarga'])} registros)\n")
+            if analisis['errores_pdf']:
+                f.write(f"• FACTURAS_ANALISIS_errores_pdf.txt      ({len(analisis['errores_pdf'])} registros)\n")
             f.write("\n")
             
             # Prioridades de acción
@@ -736,37 +793,43 @@ def guardar_resumen_consolidado(analisis, total_problemas):
                 f.write("🔴 PRIORIDAD ALTA - Comprobantes sin adjuntos\n")
                 f.write(f"   Total: {len(analisis['sin_adjuntos'])} comprobantes\n")
                 f.write("   Acción: Verificar en Odoo y regenerar/reenviar a SUNAT\n")
-                f.write(f"   Archivo: ANALISIS_sin_adjuntos.txt\n\n")
+                f.write(f"   Archivo: FACTURAS_ANALISIS_sin_adjuntos.txt\n\n")
             
             if analisis['errores_descarga']:
                 f.write("🔴 PRIORIDAD ALTA - Errores de descarga\n")
                 f.write(f"   Total: {len(analisis['errores_descarga'])} archivos\n")
                 f.write("   Acción: Revisar permisos y volver a ejecutar\n")
-                f.write(f"   Archivo: ANALISIS_errores_descarga.txt\n\n")
+                f.write(f"   Archivo: FACTURAS_ANALISIS_errores_descarga.txt\n\n")
+            
+            if analisis['errores_pdf']:
+                f.write("🔴 PRIORIDAD ALTA - Errores al extraer PDF\n")
+                f.write(f"   Total: {len(analisis['errores_pdf'])} archivos PDF\n")
+                f.write("   Acción: Revisar permisos, espacio en disco y archivos corruptos\n")
+                f.write(f"   Archivo: FACTURAS_ANALISIS_errores_pdf.txt\n\n")
             
             if analisis['sin_pdf']:
                 f.write("🟡 PRIORIDAD MEDIA - Comprobantes sin PDF\n")
                 f.write(f"   Total: {len(analisis['sin_pdf'])} comprobantes\n")
                 f.write("   Acción: Generar PDF desde Odoo\n")
-                f.write(f"   Archivo: ANALISIS_sin_pdf.txt\n\n")
+                f.write(f"   Archivo: FACTURAS_ANALISIS_sin_pdf.txt\n\n")
             
             if analisis['sin_xml']:
                 f.write("🟡 PRIORIDAD MEDIA - Comprobantes sin XML\n")
                 f.write(f"   Total: {len(analisis['sin_xml'])} comprobantes\n")
                 f.write("   Acción: Verificar envío a SUNAT\n")
-                f.write(f"   Archivo: ANALISIS_sin_xml.txt\n\n")
+                f.write(f"   Archivo: FACTURAS_ANALISIS_sin_xml.txt\n\n")
             
             if analisis['adjuntos_vacios']:
                 f.write("🟡 PRIORIDAD MEDIA - Adjuntos vacíos\n")
                 f.write(f"   Total: {len(analisis['adjuntos_vacios'])} comprobantes\n")
                 f.write("   Acción: Regenerar archivos en Odoo\n")
-                f.write(f"   Archivo: ANALISIS_adjuntos_vacios.txt\n\n")
+                f.write(f"   Archivo: FACTURAS_ANALISIS_adjuntos_vacios.txt\n\n")
             
             if analisis['sin_cdr']:
                 f.write("🟢 PRIORIDAD BAJA - Comprobantes sin CDR\n")
                 f.write(f"   Total: {len(analisis['sin_cdr'])} comprobantes\n")
                 f.write("   Acción: Esperar confirmación SUNAT y volver a ejecutar\n")
-                f.write(f"   Archivo: ANALISIS_sin_cdr.txt\n\n")
+                f.write(f"   Archivo: FACTURAS_ANALISIS_sin_cdr.txt\n\n")
             
             # Instrucciones para reintento
             f.write("="*70 + "\n")
@@ -783,7 +846,7 @@ def guardar_resumen_consolidado(analisis, total_problemas):
             f.write("   - No duplicará archivos existentes\n\n")
             
             f.write("3. VERIFICAR RESULTADOS:\n")
-            f.write("   - Revisar nuevo archivo RESUMEN_COMPLETO_PROBLEMAS.txt\n")
+            f.write("   - Revisar nuevo archivo FACTURAS_RESUMEN_COMPLETO_PROBLEMAS.txt\n")
             f.write("   - Comparar cantidad de problemas con ejecución anterior\n")
             f.write("   - Repetir hasta que no haya problemas críticos\n\n")
             
@@ -801,7 +864,7 @@ def guardar_resumen_consolidado(analisis, total_problemas):
                         f.write(f"... y {len(analisis['sin_adjuntos']) - 20} más")
                     f.write("\n\n")
         
-        print(f"   📊 Resumen consolidado guardado en: {carpeta_logs}/RESUMEN_COMPLETO_PROBLEMAS_FACTURAS.txt")
+        print(f"   📊 Resumen consolidado guardado en: {carpeta_logs}/FACTURAS_RESUMEN_COMPLETO_PROBLEMAS.txt")
         
     except Exception as e:
         print(f"   ⚠️  No se pudo guardar resumen consolidado: {e}")
@@ -814,7 +877,7 @@ def guardar_lista_problemas(tipo, lista):
         carpeta_logs = Path(BASE_PATH) / "Resumen de errores"
         carpeta_logs.mkdir(parents=True, exist_ok=True)
         
-        ruta_archivo = carpeta_logs / f"ANALISIS_{tipo}.txt"
+        ruta_archivo = carpeta_logs / f"FACTURAS_ANALISIS_{tipo}.txt"
         with open(ruta_archivo, 'w', encoding='utf-8') as f:
             f.write(f"{'='*70}\n")
             f.write(f"ANÁLISIS DE PROBLEMAS: {tipo.upper().replace('_', ' ')}\n")
@@ -842,6 +905,13 @@ def guardar_lista_problemas(tipo, lista):
                 
                 if 'archivo' in item:
                     f.write(f"    Archivo: {item['archivo']}\n")
+                
+                if 'archivo_zip' in item:
+                    f.write(f"    Archivo ZIP origen: {item['archivo_zip']}\n")
+                
+                if 'origen' in item:
+                    origen_texto = "Extraído desde ZIP" if item['origen'] == 'zip' else "Archivo directo"
+                    f.write(f"    Origen: {origen_texto}\n")
                 
                 if 'error' in item:
                     f.write(f"    Error: {item['error']}\n")
@@ -910,6 +980,19 @@ def guardar_lista_problemas(tipo, lista):
                 f.write("2. Verificar espacio en disco\n")
                 f.write("3. Revisar errores específicos arriba\n")
             
+            elif tipo == 'errores_pdf':
+                f.write("CAUSA PROBABLE:\n")
+                f.write("- PDF corrupto dentro del archivo ZIP\n")
+                f.write("- Permisos insuficientes para guardar PDF\n")
+                f.write("- Disco lleno\n")
+                f.write("- Caracteres inválidos en nombre de archivo PDF\n")
+                f.write("- Error al leer PDF del ZIP\n\n")
+                f.write("ACCIÓN RECOMENDADA:\n")
+                f.write("1. Verificar permisos de escritura en carpeta PDF\n")
+                f.write("2. Verificar espacio en disco disponible\n")
+                f.write("3. Regenerar PDF desde Odoo si está corrupto\n")
+                f.write("4. Revisar errores específicos arriba para más detalles\n")
+            
     except Exception as e:
         print(f"   ⚠️  No se pudo guardar archivo de análisis: {e}")
 
@@ -951,8 +1034,8 @@ def main():
     # 2. Verificar qué datos están disponibles
     verificar_datos_disponibles(uid, models)
     
-    # 3. Crear estructura de carpetas
-    crear_estructura_carpetas()
+    # 3. Crear estructura de carpetas (DESHABILITADO - se crean automáticamente con diarios)
+    # crear_estructura_carpetas()  # Ya no se crean carpetas directamente en el mes
     
     # 4. Obtener tipos de documento
     tipo_doc_ids = obtener_tipos_documento(uid, models)

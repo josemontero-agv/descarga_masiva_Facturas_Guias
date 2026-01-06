@@ -69,7 +69,7 @@ if not all([ODOO_URL, ODOO_DB, ODOO_USER, ODOO_PASSWORD]):
 
 # Configuración
 AÑO = 2025
-MES = 1
+MES = 12
 
 from calendar import monthrange
 ultimo_dia = monthrange(AÑO, MES)[1]
@@ -82,7 +82,7 @@ nombre_carpeta_mes = f"{MES:02d}_{nombre_mes}"
 
 # Ruta base de descarga
 if AMBIENTE == "produccion":
-    BASE_PATH_RAIZ = rf"Y:\Finanzas y Contabilidad\Créditos y Cobranzas\José Montero\Descarga_Masiva_FT_GUIA\{AÑO}\{nombre_carpeta_mes}"
+    BASE_PATH_RAIZ = rf"V:\{AÑO}\{nombre_carpeta_mes}"
     
     # Verificar acceso a la ruta de red
     if not Path(BASE_PATH_RAIZ).parent.parent.exists():

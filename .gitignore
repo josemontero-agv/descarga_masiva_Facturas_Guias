@@ -7,6 +7,8 @@ venv/
 env/
 ENV/
 
+/Prueba_Octubre/
+
 # Archivos Python
 __pycache__/
 *.py[cod]
@@ -34,4 +36,3 @@ Thumbs.db
 *.tmp
 *.temp
 
-Prueba_Octubre/

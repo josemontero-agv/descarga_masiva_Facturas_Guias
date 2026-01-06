@@ -82,7 +82,7 @@ ODOO_PASSWORD = os.getenv('ODOO_PASSWORD')
 
 # Configuración de Fechas
 AÑO = 2025
-MES = 10
+MES = 12
 
 ultimo_dia = monthrange(AÑO, MES)[1]
 FECHA_INICIO = f"{AÑO}-{MES:02d}-01"
@@ -94,7 +94,7 @@ nombre_carpeta_mes = f"{MES:02d}_{nombre_mes}"
 
 # Ruta base de descarga
 if AMBIENTE == "produccion":
-    BASE_PATH_RAIZ = rf"Y:\Finanzas y Contabilidad\Créditos y Cobranzas\José Montero\Descarga_Masiva_FT_GUIA\{AÑO}\{nombre_carpeta_mes}"
+    BASE_PATH_RAIZ = rf"V:\{AÑO}\{nombre_carpeta_mes}"
     if not Path(BASE_PATH_RAIZ).parent.parent.exists():
         print(f"⚠️  ADVERTENCIA: No se detecta la unidad Y:")
         # Se podría añadir input de confirmación aquí
