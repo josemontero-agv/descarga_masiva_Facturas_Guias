@@ -75,18 +75,23 @@ ODOO_USER = os.getenv('ODOO_USER')
 ODOO_PASSWORD = os.getenv('ODOO_PASSWORD')
 
 # Configuración de rutas
-AÑO = 2025
-MES = 11  # ← CAMBIAR AQUÍ EL MES
+AÑO = 2026
+MES = 1  # ← CAMBIADO: de 11 a 1 para procesar Enero (01_January)
 
-# Obtener nombre del mes
-nombre_mes = datetime(AÑO, MES, 1).strftime('%B')
+# Obtener nombre del mes en español
+MESES_ESPANOL = {
+    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+}
+nombre_mes = MESES_ESPANOL.get(MES, datetime(AÑO, MES, 1).strftime('%B'))
 nombre_carpeta_mes = f"{MES:02d}_{nombre_mes}"
 
 # Ruta base de descarga
 if AMBIENTE == "produccion":
     BASE_PATH_RAIZ = rf"V:\{AÑO}\{nombre_carpeta_mes}"
     if not Path(BASE_PATH_RAIZ).parent.parent.exists():
-        print(f"⚠️  ADVERTENCIA: No se detecta la unidad Y:")
+        print(f"⚠️  ADVERTENCIA: No se detecta la unidad V:")
 else:
     BASE_PATH_RAIZ = project_root / "Prueba_Octubre" / nombre_carpeta_mes
     print(f"🔧 MODO DESARROLLO: Guardando en ruta local: {BASE_PATH_RAIZ}")
@@ -362,6 +367,13 @@ def descargar_pdfs_faltantes(driver, comprobantes, uid, models):
     errores = 0
     start_time = time.time()
     
+    # Estructura para el log de post-revisión
+    analisis_resultados = {
+        'exitosos': [],
+        'fallidos': [],
+        'ya_existentes': []
+    }
+    
     for idx, comp_info in enumerate(comprobantes, 1):
         move_id = comp_info['id']
         nombre_comprobante = comp_info['nombre']
@@ -373,6 +385,11 @@ def descargar_pdfs_faltantes(driver, comprobantes, uid, models):
         if not info:
             print(f"   ⚠️  No se pudo obtener información del comprobante")
             errores += 1
+            analisis_resultados['fallidos'].append({
+                'nombre': nombre_comprobante,
+                'id': move_id,
+                'error': "No se pudo obtener info vía XML-RPC"
+            })
             continue
         
         # Construir ruta destino: {Mes}/{Diario}/{TipoDocumento}/pdf/
@@ -391,6 +408,7 @@ def descargar_pdfs_faltantes(driver, comprobantes, uid, models):
             if lock_file:
                 liberar_bloqueo_archivo(lock_file, ruta_final)
             print(f"   ⏭️  Ya existe o está en proceso")
+            analisis_resultados['ya_existentes'].append({'nombre': nombre_comprobante, 'id': move_id})
             continue
         
         try:
@@ -409,7 +427,7 @@ def descargar_pdfs_faltantes(driver, comprobantes, uid, models):
                     tiempo_restante = (total - idx) / velocidad if velocidad > 0 else 0
                     
                     print(f"   ✅ Descargado | Vel: {velocidad:.1f} docs/s | ETA: {tiempo_restante/60:.1f} min")
-                    print(f"   📂 Guardado en: {ruta_final.parent.name}/{ruta_final.parent.parent.name}/pdf/")
+                    analisis_resultados['exitosos'].append({'nombre': nombre_comprobante, 'id': move_id})
                 except (FileExistsError, shutil.Error):
                     try:
                         if origen.exists():
@@ -420,9 +438,19 @@ def descargar_pdfs_faltantes(driver, comprobantes, uid, models):
             else:
                 print(f"   ❌ Timeout descarga")
                 errores += 1
+                analisis_resultados['fallidos'].append({
+                    'nombre': nombre_comprobante,
+                    'id': move_id,
+                    'error': "Timeout esperando el PDF del navegador"
+                })
         except Exception as e:
             print(f"   ❌ Error: {str(e)[:60]}")
             errores += 1
+            analisis_resultados['fallidos'].append({
+                'nombre': nombre_comprobante,
+                'id': move_id,
+                'error': str(e)[:100]
+            })
         finally:
             if lock_file:
                 liberar_bloqueo_archivo(lock_file, ruta_final)
@@ -430,6 +458,50 @@ def descargar_pdfs_faltantes(driver, comprobantes, uid, models):
     tiempo_total = time.time() - start_time
     print(f"\n✨ Proceso completado en {tiempo_total/60:.1f} minutos.")
     print(f"📊 Total: {total} | Descargados: {descargados} | Errores: {errores}")
+    
+    # Generar log de post-revisión
+    guardar_log_revision(analisis_resultados)
+
+def guardar_log_revision(resultados):
+    """Guarda un reporte detallado de la ejecución actual"""
+    try:
+        carpeta_logs = Path(BASE_PATH_RAIZ) / "Resumen de errores"
+        carpeta_logs.mkdir(parents=True, exist_ok=True)
+        
+        fecha_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+        ruta_archivo = carpeta_logs / f"RESCATE_PDF_LOG_{fecha_str}.txt"
+        
+        with open(ruta_archivo, 'w', encoding='utf-8') as f:
+            f.write(f"{'='*70}\n")
+            f.write(f"REPORTE DE RESCATE DE PDFs FALTANTES\n")
+            f.write(f"{'='*70}\n")
+            f.write(f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Mes procesado: {nombre_carpeta_mes}\n")
+            f.write(f"{'='*70}\n\n")
+            
+            f.write(f"RESUMEN EJECUTIVO:\n")
+            f.write(f"✅ Recuperados con éxito: {len(resultados['exitosos'])}\n")
+            f.write(f"❌ Siguen fallando:       {len(resultados['fallidos'])}\n")
+            f.write(f"⏭️  Ya estaban presentes:  {len(resultados['ya_existentes'])}\n\n")
+            
+            if resultados['fallidos']:
+                f.write(f"{'='*70}\n")
+                f.write(f"DETALLE DE DOCUMENTOS QUE SIGUEN FALLANDO:\n")
+                f.write(f"{'='*70}\n")
+                for err in resultados['fallidos']:
+                    f.write(f"• {err['nombre']} (ID: {err['id']}) - Error: {err['error']}\n")
+                f.write("\n")
+
+            if resultados['exitosos']:
+                f.write(f"{'='*70}\n")
+                f.write(f"DETALLE DE DOCUMENTOS RECUPERADOS:\n")
+                f.write(f"{'='*70}\n")
+                for ok in resultados['exitosos']:
+                    f.write(f"• {ok['nombre']} (ID: {ok['id']})\n")
+        
+        print(f"💾 Log de revisión guardado en: {ruta_archivo}")
+    except Exception as e:
+        print(f"⚠️ No se pudo guardar el log de revisión: {e}")
 
 def main():
     # Leer archivo de análisis

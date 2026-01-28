@@ -1,76 +1,26 @@
-# 🌐 Web Scraping para PDFs de Guías de Remisión
+# 🌐 Módulo de Web Scraping (Selenium)
 
-## 📋 Descripción
+Este módulo contiene las soluciones de automatización visual para superar las limitaciones del API XML-RPC de Odoo.
 
-Este módulo implementa web scraping para descargar los PDFs de guías de remisión directamente desde la interfaz web de Odoo usando Selenium.
+## 🚀 Scripts Incluidos
 
-## 🎯 Objetivo
+### 1. `09_descargar_pdfs_guias.py`
+Descarga masiva de PDFs de Guías de Remisión.
+- **Estrategia**: Navega al reporte técnico `agr_shiping_guide.report_edi_gre`.
+- **Rendimiento**: ~3 segundos por documento.
 
-Descargar los PDFs originales generados por Odoo para las guías de remisión, evitando las limitaciones de XML-RPC.
+### 2. `11_descargar_pdfs_faltantes.py` ⭐ (NUEVO)
+Script de "rescate" para facturas, boletas y notas.
+- **Función**: Lee el archivo `FACTURAS_ANALISIS_sin_pdf.txt`.
+- **Acción**: Abre el navegador, inicia sesión y fuerza la descarga del reporte `account.report_invoice`.
+- **Logging**: Genera un reporte detallado de éxito/error llamado `RESCATE_PDF_LOG_...txt`.
 
-## ✅ Estado
+## ⚡ Ejecución Simultánea
+Ambos scripts soportan ser ejecutados en **múltiples terminales al mismo tiempo**:
+- Cada proceso usa su propio `PID` para carpetas temporales.
+- Sistema de **bloqueo atómico** (.lock) evita que dos terminales descarguen el mismo archivo.
+- **Recomendación**: Máximo 4-6 terminales simultáneas para no saturar la memoria RAM.
 
-**✅ FUNCIONAL** - Implementado y listo para producción
-
-## 🚀 Características Principales
-
-### 1. Descarga Optimizada
-- **XML-RPC**: Obtiene lista de guías rápidamente
-- **Selenium**: Navega directamente a URLs de reportes PDF
-- **Velocidad**: ~3 segundos por guía (1000 guías en ~50 minutos)
-
-### 2. ⚡ Ejecución Simultánea
-- ✅ **Soporta múltiples terminales simultáneas**
-- ✅ **Sistema de bloqueo de archivos** para evitar descargas duplicadas
-- ✅ **Carpeta temporal única por proceso** (`temp_downloads_{PID}`)
-- ✅ **Verificación atómica** previene race conditions
-- ✅ **Manejo robusto de errores** con liberación automática de bloqueos
-
-### 3. Estrategia Implementada
-1. **XML-RPC**: Obtiene lista de guías del período configurado
-2. **Selenium + Chrome**: Inicia sesión automáticamente en Odoo
-3. **Descarga directa**: Navega a `/report/pdf/{report_name}/{doc_id}` para cada guía
-4. **Organización**: Guarda PDFs con nombre `Txxx-xxxxxx.pdf` en carpeta estructurada
-
-## 📝 Uso
-
-### Configuración
-1. Editar `09_descargar_pdfs_guias.py`:
-   - **AMBIENTE**: `"desarrollo"` o `"produccion"`
-   - **AÑO / MES**: Período a descargar
-
-### Ejecución Simple
-```bash
-python scripts/guias_web_scraping/09_descargar_pdfs_guias.py
-```
-
-### Ejecución Simultánea (Múltiples Terminales)
-```bash
-# Terminal 1
-python scripts/guias_web_scraping/09_descargar_pdfs_guias.py
-
-# Terminal 2 (simultáneamente)
-python scripts/guias_web_scraping/09_descargar_pdfs_guias.py
-
-# Terminal 3 (simultáneamente)
-python scripts/guias_web_scraping/09_descargar_pdfs_guias.py
-```
-
-Cada proceso trabajará en paralelo sin interferencias, acelerando significativamente la descarga.
-
-## 🔧 Requisitos Técnicos
-
-- **Google Chrome** instalado en Windows
-- **Selenium** y **webdriver-manager** (instalados vía `requirements.txt`)
-- **Credenciales Odoo** en `.env.desarrollo` o `.env.produccion`
-
-## 📊 Reportes Utilizados
-
-- `agr_shiping_guide.report_edi_gre` - e-Guía de Remisión AGR (principal)
-
-## 📚 Referencias
-
-- **XMLs funcionales**: `scripts/documentos/09_descarga_guias_xml.py`
-- **Reportes identificados**: Ver `utils/analizar_reportes.py`
-- **Documentación principal**: Ver `README.md` en la raíz del proyecto
-
+## 📂 Organización
+Los archivos se guardan siguiendo la jerarquía:
+`V:\{AÑO}\{Mes_Español}\{Diario}\{Tipo_Documento}\pdf\`

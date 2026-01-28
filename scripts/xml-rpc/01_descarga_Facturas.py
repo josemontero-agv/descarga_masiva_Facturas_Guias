@@ -74,8 +74,8 @@ if not all([ODOO_URL, ODOO_DB, ODOO_USER, ODOO_PASSWORD]):
 # ============================================
 
 # Configuración de fechas - Cambiar aquí el año y mes que deseas descargar
-AÑO = 2025  # ← CAMBIAR AQUÍ EL AÑO
-MES = 12    # ← CAMBIAR AQUÍ EL MES (1-12) - Para ejecutar en paralelo, cambiar el mes
+AÑO = 2026  # ← CAMBIAR AQUÍ EL AÑO
+MES = 1    # ← CAMBIAR AQUÍ EL MES (1-12) - Para ejecutar en paralelo, cambiar el mes
 
 # Calcular fechas automáticamente
 from calendar import monthrange
@@ -83,8 +83,13 @@ ultimo_dia = monthrange(AÑO, MES)[1]
 FECHA_INICIO = f"{AÑO}-{MES:02d}-01"
 FECHA_FIN = f"{AÑO}-{MES:02d}-{ultimo_dia}"
 
-# Obtener nombre del mes
-nombre_mes = datetime(AÑO, MES, 1).strftime('%B')
+# Obtener nombre del mes en español
+MESES_ESPANOL = {
+    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+}
+nombre_mes = MESES_ESPANOL.get(MES, datetime(AÑO, MES, 1).strftime('%B'))
 nombre_carpeta_mes = f"{MES:02d}_{nombre_mes}"
 
 # Definir rutas según ambiente
@@ -97,7 +102,7 @@ if AMBIENTE == "produccion":
         print(f"❌ Error: No se puede acceder a la ruta de red:")
         print(f"   {BASE_PATH}")
         print(f"💡 Verifica que:")
-        print(f"   1. La unidad Y: esté mapeada correctamente")
+        print(f"   1. La unidad V: esté mapeada correctamente")
         print(f"   2. Tengas permisos de escritura en la carpeta")
         print(f"   3. Estés conectado a la red de la empresa")
         respuesta = input("\n¿Continuar de todas formas? (s/n): ")
@@ -247,24 +252,58 @@ def verificar_datos_disponibles(uid, models):
 
 
 def obtener_comprobantes(uid, models, tipo_doc_ids):
-    """Obtener todos los comprobantes del mes especificado"""
+    """Obtener todos los comprobantes del mes especificado con auditoría previa"""
     print(f"\n{'='*70}")
-    print("🔍 BUSCANDO COMPROBANTES DEL PERÍODO SELECCIONADO")
+    print("🔍 AUDITORÍA Y BÚSQUEDA DE COMPROBANTES")
     print(f"{'='*70}")
     print(f"📅 Período: {FECHA_INICIO} al {FECHA_FIN}")
     
     try:
-        # Construir dominio de búsqueda
-        domain = [
-            ('move_type', 'in', ['out_invoice', 'out_refund']),  # Facturas y notas
-            ('state', '=', 'posted'),  # Solo documentos contabilizados
+        # 1. AUDITORÍA: Contar TODO lo que existe en el periodo sin importar el estado
+        domain_audit = [
+            ('move_type', 'in', ['out_invoice', 'out_refund']),
             ('invoice_date', '>=', FECHA_INICIO),
             ('invoice_date', '<=', FECHA_FIN)
         ]
         
-        # NO FILTRAR por tipo de documento aquí, obtener todos y clasificar después
+        # Aumentamos el limit a 100,000 para asegurar que Odoo no nos corte los resultados
+        todos_los_registros = models.execute_kw(
+            ODOO_DB, uid, ODOO_PASSWORD,
+            'account.move', 'search_read',
+            [domain_audit],
+            {
+                'fields': ['state', 'l10n_latam_document_type_id', 'invoice_date'],
+                'limit': 100000 
+            }
+        )
         
-        # Buscar comprobantes
+        # Procesar estadísticas de auditoría
+        stats_audit = {}
+        for reg in todos_los_registros:
+            estado = reg.get('state', 'unknown')
+            tipo = reg.get('l10n_latam_document_type_id')
+            tipo_nombre = tipo[1] if tipo else 'Sin Tipo'
+            
+            if tipo_nombre not in stats_audit: 
+                stats_audit[tipo_nombre] = {'total': 0, 'posted': 0, 'draft': 0, 'cancel': 0}
+            
+            stats_audit[tipo_nombre]['total'] += 1
+            if estado == 'posted': stats_audit[tipo_nombre]['posted'] += 1
+            elif estado == 'draft': stats_audit[tipo_nombre]['draft'] += 1
+            elif estado == 'cancel': stats_audit[tipo_nombre]['cancel'] += 1
+
+        print(f"\n📊 RESUMEN DE DOCUMENTOS ENCONTRADOS EN ODOO (AUDITORÍA TOTAL):")
+        print(f"{'Tipo de Documento':<30} | {'Total':<7} | {'Publicado':<8} | {'Borrador':<8} | {'Cancelado':<8}")
+        print("-" * 80)
+        for tipo, s in stats_audit.items():
+            print(f"{tipo[:30]:<30} | {s['total']:<7} | {s['posted']:<8} | {s['draft']:<8} | {s['cancel']:<8}")
+        
+        if not todos_los_registros:
+            print(f"⚠️  No se encontraron registros bajo el Move Type estándar. Verificando otros tipos...")
+
+        # 2. BÚSQUEDA REAL: Solo los publicados para procesar descarga
+        domain = domain_audit + [('state', '=', 'posted')]
+        
         comprobantes = models.execute_kw(
             ODOO_DB, uid, ODOO_PASSWORD,
             'account.move', 'search_read',
@@ -274,24 +313,12 @@ def obtener_comprobantes(uid, models, tipo_doc_ids):
                     'id', 'name', 'invoice_date', 'l10n_latam_document_type_id',
                     'partner_id', 'amount_total', 'state', 'journal_id'
                 ],
-                'order': 'invoice_date asc'
+                'order': 'invoice_date asc',
+                'limit': 100000
             }
         )
         
-        print(f"\n✅ Se encontraron {len(comprobantes)} comprobantes")
-        
-        # Estadísticas por tipo
-        if comprobantes:
-            print(f"\n📊 ESTADÍSTICAS POR TIPO DE DOCUMENTO:")
-            tipo_count = {}
-            for comp in comprobantes:
-                tipo = comp.get('l10n_latam_document_type_id')
-                tipo_nombre = tipo[1] if tipo and len(tipo) > 1 else 'Sin tipo'
-                tipo_count[tipo_nombre] = tipo_count.get(tipo_nombre, 0) + 1
-            
-            for tipo, count in tipo_count.items():
-                print(f"   • {tipo}: {count} documentos")
-        
+        print(f"\n✅ Se enviarán a proceso de descarga: {len(comprobantes)} documentos publicados.")
         return comprobantes
         
     except Exception as e:

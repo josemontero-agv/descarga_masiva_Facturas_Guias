@@ -81,22 +81,27 @@ ODOO_USER = os.getenv('ODOO_USER')
 ODOO_PASSWORD = os.getenv('ODOO_PASSWORD')
 
 # Configuración de Fechas
-AÑO = 2025
-MES = 12
+AÑO = 2026
+MES = 1
 
 ultimo_dia = monthrange(AÑO, MES)[1]
 FECHA_INICIO = f"{AÑO}-{MES:02d}-01"
 FECHA_FIN = f"{AÑO}-{MES:02d}-{ultimo_dia}"
 
-# Obtener nombre del mes
-nombre_mes = datetime(AÑO, MES, 1).strftime('%B')
+# Obtener nombre del mes en español
+MESES_ESPANOL = {
+    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+}
+nombre_mes = MESES_ESPANOL.get(MES, datetime(AÑO, MES, 1).strftime('%B'))
 nombre_carpeta_mes = f"{MES:02d}_{nombre_mes}"
 
 # Ruta base de descarga
 if AMBIENTE == "produccion":
     BASE_PATH_RAIZ = rf"V:\{AÑO}\{nombre_carpeta_mes}"
     if not Path(BASE_PATH_RAIZ).parent.parent.exists():
-        print(f"⚠️  ADVERTENCIA: No se detecta la unidad Y:")
+        print(f"⚠️  ADVERTENCIA: No se detecta la unidad V:")
         # Se podría añadir input de confirmación aquí
 else:
     BASE_PATH_RAIZ = project_root / "Prueba_Octubre" / nombre_carpeta_mes
