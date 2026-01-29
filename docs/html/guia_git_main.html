@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guía: Migración de Master a Main</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav id="toc">
+        <h2><i class="bi bi-git"></i> Git Guide</h2>
+        <ul>
+            <li><a href="#introduccion">Introducción</a></li>
+            <li><a href="#pasos-locales">Pasos Locales</a></li>
+            <li><a href="#pasos-remotos">Pasos Remotos</a></li>
+            <li><a href="#comandos-rapidos">Resumen de Comandos</a></li>
+        </ul>
+    </nav>
+    <main>
+        <h1><i class="bi bi-arrow-repeat"></i> Migración de Rama: Master a Main</h1>
+
+        <section id="introduccion">
+            <h2><i class="bi bi-info-circle"></i> Introducción</h2>
+            <p>Por estándares modernos de la comunidad de desarrollo, se recomienda utilizar <code>main</code> como el nombre de la rama principal en lugar de <code>master</code>. Esta guía detalla cómo realizar esta transición de forma segura.</p>
+        </section>
+
+        <section id="pasos-locales">
+            <h2><i class="bi bi-pc-display"></i> 1. Pasos en tu Computadora Local</h2>
+            <p>Primero, debemos renombrar la rama en tu repositorio local:</p>
+            <pre><code># Renombrar la rama master a main
+git branch -m master main</code></pre>
+            <div class="note">
+                <strong>Dato:</strong> El parámetro <code>-m</code> significa "move" (mover/renombrar).
+            </div>
+        </section>
+
+        <section id="pasos-remotos">
+            <h2><i class="bi bi-cloud-arrow-up"></i> 2. Pasos en el Repositorio Remoto (GitHub)</h2>
+            <p>Ahora debemos subir la nueva rama y limpiar la antigua:</p>
+            
+            <h4>Subir la nueva rama main:</h4>
+            <pre><code>git push -u origin main</code></pre>
+
+            <h4>Eliminar la rama master en el remoto:</h4>
+            <pre><code>git push origin --delete master</code></pre>
+
+            <div class="note" style="background-color: #fff3cd; border-left-color: #ffc107;">
+                <strong><i class="bi bi-exclamation-triangle"></i> Atención:</strong> Si <code>master</code> es la rama predeterminada en GitHub, el comando de borrado fallará. Debes ir a <strong>Settings > Branches</strong> en la web de GitHub y cambiar la "Default branch" a <code>main</code> antes de borrarla.
+            </div>
+        </section>
+
+        <section id="comandos-rapidos">
+            <h2><i class="bi bi-lightning-charge"></i> Resumen de Comandos</h2>
+            <p>Copia y pega este bloque para una migración rápida:</p>
+            <pre><code>git branch -m master main
+git push -u origin main
+git push origin --delete master</code></pre>
+        </section>
+    </main>
+</body>
+</html>
