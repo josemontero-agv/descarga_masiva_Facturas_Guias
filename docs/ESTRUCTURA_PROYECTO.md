@@ -1,100 +1,71 @@
 # 📂 Estructura del Proyecto - Guía Visual
 
-## 🗂️ Organización Actual
+## 🗂️ Organización Actual (Modular)
 
 ```
 descarga_masiva_Facturas_Guias/
 │
-├── 📄 README.md                    # Documentación principal
-├── 📄 ARCHITECTURA.md              # Arquitectura del proyecto
-├── 📄 .gitignore                   # Archivos ignorados por Git
-├── 📄 requirements.txt             # Dependencias Python
+├── 📁 core/                       # 🧠 NÚCLEO DEL SISTEMA
+│   ├── config.py                  # Configuración central (Ambientes, Rutas)
+│   └── odoo_client.py             # Conexión XML-RPC unificada
 │
-├── 📁 scripts/                     # ⭐ SCRIPTS PRINCIPALES
-│   │
-│   ├── 📁 documentos/              # ✅ Scripts activos para documentos
-│   │   └── 01_descarga_Facturas.py    # Script principal (facturas, boletas, notas)
-│   │
-│   └── 📁 guias_deprecated/        # ⚠️ Scripts antiguos (NO USAR)
-│       ├── README.md                   # Explicación de deprecación
-│       ├── 09_descaga_guias.py
-│       ├── extraccion_reporte_guia_pdf.py
-│       ├── generar_pdfs_desde_xml.py
-│       └── generar_todos_los_pdfs.py
+├── 📁 modules/                    # 🛠️ LÓGICA DE NEGOCIO (Reutilizable)
+│   ├── documentos_module.py       # Procesamiento de Facturas/Boletas/Notas
+│   └── guias_module.py            # Lógica dual (XML + Scraping) para Guías
 │
-├── 📁 utils/                       # 🛠️ HERRAMIENTAS Y UTILIDADES
-│   ├── analizar_reportes.py           # Analiza reportes disponibles en Odoo
-│   └── Prueba_test_odoo_conexion/
-│       └── conectar_odoo.py           # Script de prueba de conexión
+├── 📁 run/                        # 🚀 LANZADORES (Entry Points)
+│   ├── descargar_comprobantes.py  # Ejecución diaria de Facturación
+│   ├── descargar_guias.py         # Ejecución diaria de Guías de Remisión
+│   └── reparar_faltantes.py       # Sistema de rescate para errores de red
 │
-├── 📁 docs/                        # 📚 DOCUMENTACIÓN
-│   ├── INSTRUCCIONES_RAPIDAS.md
-│   ├── README_EXTRACCION_GUIAS.md
-│   └── ESTRUCTURA_PROYECTO.md         # Este archivo
+├── 📁 tools/                      # 🔧 UTILIDADES Y MANTENIMIENTO
+│   ├── migrar_documentos_2025.py  # Migración rápida con Robocopy
+│   └── test_odoo.py               # Prueba de conexión a la API
 │
-├── 📁 config/                      # ⚙️ CONFIGURACIÓN (futuro)
+├── 📁 docs/                       # 📚 DOCUMENTACIÓN
+│   └── html/                      # Portal de documentación Web profesional
 │
-└── 📁 Prueba_Octubre/              # 📦 DATOS Y RESULTADOS
-    ├── 01_Facturas/
-    ├── 03_Boletas/
-    ├── 07_Notas_Credito/
-    ├── 08_Notas_Debito/
-    ├── 09_Guias_Remision/
-    └── RESUMEN_EJECUTIVO.md
+├── 📁 archive/                    # 📦 ARCHIVO HISTÓRICO
+│   └── (Scripts antiguos preservados)
+│
+├── 📄 .env.example                # Plantilla de configuración
+└── 📄 README.md                   # Inicio rápido y visión general
 ```
 
 ## 🎯 ¿Dónde está cada cosa?
 
-### ✅ Scripts Activos (Usar estos)
+### ✅ Scripts de Ejecución Diaria
+| Qué necesitas | Dónde está | Comando |
+|---------------|------------|---------|
+| Descargar Facturas/Boletas | `run/descargar_comprobantes.py` | `python run/descargar_comprobantes.py` |
+| Descargar Guías (Integral) | `run/descargar_guias.py` | `python run/descargar_guias.py` |
+| Recuperar archivos faltantes | `run/reparar_faltantes.py` | `python run/reparar_faltantes.py` |
 
-| Qué necesitas | Dónde está |
-|---------------|------------|
-| Descargar facturas, boletas, notas | `scripts/documentos/01_descarga_Facturas.py` |
-| Analizar reportes de Odoo | `utils/analizar_reportes.py` |
-| Probar conexión a Odoo | `utils/Prueba_test_odoo_conexion/conectar_odoo.py` |
+### 🛠️ Herramientas Técnicas
+| Qué es | Ubicación |
+|--------|------------|
+| Configuración de Rutas y Meses | `core/config.py` |
+| Conexión a Odoo | `core/odoo_client.py` |
+| Test de comunicación API | `tools/test_odoo.py` |
 
-### ⚠️ Scripts Deprecated (NO usar)
-
-| Qué es | Dónde está | Por qué no usar |
-|--------|------------|-----------------|
-| Scripts de guías | `scripts/guias_deprecated/` | Se está implementando web scraping |
-
-### 📚 Documentación
-
-| Documento | Ubicación | Para qué sirve |
-|-----------|-----------|----------------|
-| Guía principal | `README.md` | Inicio rápido y visión general |
-| Arquitectura | `ARCHITECTURA.md` | Diseño y estructura del proyecto |
-| Instrucciones | `docs/INSTRUCCIONES_RAPIDAS.md` | Configuración paso a paso |
-| Guías (deprecated) | `docs/README_EXTRACCION_GUIAS.md` | Referencia histórica |
+### 📚 Documentación Profesional
+Contamos con un portal web interactivo con manuales detallados:
+👉 **[docs/html/index.html](docs/html/index.html)**
 
 ## 🚀 Comandos Rápidos
 
 ```bash
-# Desde la raíz del proyecto
+# 1. Probar que todo esté bien configurado
+python tools/test_odoo.py
 
-# Descargar documentos
-python scripts/documentos/01_descarga_Facturas.py
+# 2. Descargar facturas del periodo configurado
+python run/descargar_comprobantes.py
 
-# Analizar reportes
-python utils/analizar_reportes.py
-
-# Probar conexión
-python utils/Prueba_test_odoo_conexion/conectar_odoo.py
+# 3. Descargar guías (XML y PDF automáticamente)
+python run/descargar_guias.py
 ```
 
-## 📝 Notas Importantes
-
-1. **Archivo de configuración**: El archivo `.env.desarrollo` debe estar en la **raíz del proyecto**
-2. **Scripts de guías**: No usar los scripts en `scripts/guias_deprecated/`
-3. **Datos**: Los documentos descargados se guardan en `Prueba_Octubre/`
-4. **Utilidades**: Scripts auxiliares están en `utils/`
-
-## 🔄 Cambios Recientes
-
-- ✅ Scripts organizados por tipo (documentos vs guías)
-- ✅ Scripts de guías movidos a `guias_deprecated/`
-- ✅ Documentación centralizada en `docs/`
-- ✅ Utilidades separadas en `utils/`
-- ✅ Rutas actualizadas para buscar `.env` en la raíz
-
+## 📝 Notas de Optimización
+1.  **Validación Previa**: El sistema ahora detecta si un archivo ya existe localmente antes de intentar descargarlo de Odoo.
+2.  **Unificación**: No es necesario correr scripts de XML y PDF por separado para las guías; `descargar_guias.py` lo hace todo.
+3.  **Seguridad**: Nunca compartas tus archivos `.env.produccion` o `.env.desarrollo`.

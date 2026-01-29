@@ -1,55 +1,58 @@
 # 📦 Descarga Masiva de Comprobantes Electrónicos desde Odoo
 
-Sistema automatizado para la extracción masiva de documentos fiscales (facturas, boletas, notas y guías) desde Odoo ERP, utilizando una estrategia híbrida de XML-RPC y Web Scraping con Selenium.
+Sistema automatizado para la extracción masiva de documentos fiscales (facturas, boletas, notas y guías) desde Odoo ERP, utilizando una estrategia híbrida de **XML-RPC** y **Web Scraping** con Selenium.
 
-## 🚀 Características Recientes
-- **Nueva Unidad de Red**: Migración completa de almacenamiento a la unidad `V:\2025`.
-- **Localización**: Organización de carpetas con nombres de meses en español (ej. `01_Enero`).
-- **Sistema de Rescate**: Nuevo script especializado para recuperar PDFs que no están adjuntos en Odoo mediante navegación automatizada.
-- **Ejecución Paralela**: Soporte para múltiples terminales simultáneas con sistema de bloqueo de archivos.
+## 📖 Documentación Profesional
+Para guías detalladas, manuales y arquitectura, consulte nuestro portal de documentación:
+👉 **[Portal de Documentación (HTML)](docs/html/index.html)**
 
-## 📁 Estructura del Proyecto
-```
-descarga_masiva_Facturas_Guias/
-├── scripts/
-│   ├── xml-rpc/                 # Scripts basados en API (Rápidos)
-│   │   ├── 01_descarga_Facturas.py    # Facturas, boletas y notas
-│   │   ├── 09_descarga_guias_xml.py   # XMLs oficiales SUNAT
-│   │   └── 10_migrar_documentos.py    # Transferencia y traducción de meses
-│   │
-│   ├── web_scraping/            # Scripts basados en Selenium (Rescate)
-│   │   ├── 09_descargar_pdfs_guias.py # PDFs de guías via navegador
-│   │   └── 11_descargar_pdfs_faltantes.py # Rescate de facturas sin PDF
-│   │
-│   └── utils/                   # Herramientas de diagnóstico
-│
-├── Prueba_Octubre/              # Almacenamiento local (Modo Desarrollo)
-└── docs/                        # Documentación técnica y bitácoras
-```
+---
 
-## 🛠️ Guía de Uso Rápido
+## 🚀 Flujo de Ejecución Ordenado
 
-### 1. Descarga Inicial (XML-RPC)
-Ejecuta el script principal para descargar todo lo que ya tiene adjuntos en Odoo:
+Para un correcto funcionamiento, siga este orden de ejecución:
+
+### 1. Configuración de Ambiente
+Copie el archivo de ejemplo y configure sus credenciales de Odoo:
 ```bash
-python scripts/xml-rpc/01_descarga_Facturas.py
+cp .env.example .env.produccion
+# Edite .env.produccion con su URL, DB, Usuario y Password
 ```
-*Esto generará un log en `Resumen de errores/FACTURAS_ANALISIS_sin_pdf.txt` con lo que falte.*
 
-### 2. Rescate de Faltantes (Web Scraping)
-Para aquellos documentos que no tenían el PDF adjunto, usa el script de rescate:
+### 2. Descarga de Comprobantes (Facturas/Boletas/Notas)
+Descarga rápida vía API de todos los archivos XML, PDF y CDR adjuntos.
 ```bash
-python scripts/web_scraping/11_descargar_pdfs_faltantes.py
+python run/descargar_comprobantes.py
 ```
-*Este script leerá el log del paso anterior y "forzará" la generación del PDF via navegador.*
 
-### 3. Migración y Consolidación
-Para mover guías antiguas o consolidar meses entre unidades (`Y:` a `V:`):
+### 3. Descarga de Guías de Remisión (XML + PDF)
+Proceso integral que primero baja el XML oficial y luego utiliza Selenium para generar el PDF gráfico.
 ```bash
-python scripts/xml-rpc/10_migrar_documentos.py
+python run/descargar_guias.py
 ```
+
+### 4. Reparación de Faltantes (Opcional)
+Si hubo fallos en la descarga de PDFs por inestabilidad de red:
+```bash
+python run/reparar_faltantes.py
+```
+
+---
+
+## 📁 Nueva Estructura del Proyecto
+- `core/`: Configuración centralizada y cliente Odoo.
+- `modules/`: Lógica de negocio reutilizable para cada tipo de documento.
+- `run/`: Scripts principales de ejecución diaria.
+- `tools/`: Herramientas de migración (Robocopy) y pruebas de conexión.
+- `docs/html/`: Portal de documentación técnica y de usuario.
+- `archive/`: Scripts antiguos preservados por seguridad.
 
 ## 📋 Requisitos
 - Python 3.8+
-- Google Chrome instalado
-- Unidad `V:` mapeada (para producción)
+- Google Chrome (actualizado)
+- Dependencias: `pip install -r requirements.txt`
+- Acceso a la unidad de red `V:` (para ambiente de producción)
+
+---
+**Autor:** GitHub Proyectos AGV
+**Repo Remoto:** [josemontero-agv/descarga_masiva_Facturas_Guias](https://github.com/josemontero-agv/descarga_masiva_Facturas_Guias.git)

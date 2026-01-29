@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual de Usuario - Descarga Masiva</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav id="toc">
+        <h2><i class="bi bi-book"></i> Manual</h2>
+        <ul>
+            <li><a href="#introduccion">Introducción</a></li>
+            <li><a href="#configuracion">Configuración Inicial</a></li>
+            <li><a href="#descarga-comprobantes">Descarga de Facturas</a></li>
+            <li><a href="#descarga-guias">Descarga de Guías</a></li>
+            <li><a href="#reparacion">Reparación de Faltantes</a></li>
+        </ul>
+    </nav>
+    <main>
+        <h1><i class="bi bi-person-workspace"></i> Manual de Usuario</h1>
+
+        <section id="introduccion">
+            <h2><i class="bi bi-rocket-takeoff"></i> Introducción</h2>
+            <p>Este sistema permite descargar de forma masiva comprobantes electrónicos (Facturas, Boletas, Notas) y Guías de Remisión desde Odoo. Los archivos se organizan automáticamente en carpetas por Año, Mes y Tipo de Documento.</p>
+        </section>
+
+        <section id="configuracion">
+            <h2><i class="bi bi-gear"></i> Configuración Inicial</h2>
+            <p>Antes de ejecutar cualquier script, asegúrese de tener configurado su archivo de credenciales:</p>
+            <ol>
+                <li>Copie el archivo <code>.env.example</code> y renombrelo a <code>.env.produccion</code>.</li>
+                <li>Abra el archivo y complete sus credenciales de Odoo:
+                    <pre><code>ODOO_URL="https://tu-instancia.odoo.com"
+ODOO_DB="tu_db"
+ODOO_USER="tu_usuario"
+ODOO_PASSWORD="tu_password"</code></pre>
+                </li>
+            </ol>
+        </section>
+
+        <section id="descarga-comprobantes">
+            <h2><i class="bi bi-file-earmark-pdf"></i> Descarga de Comprobantes</h2>
+            <p>Para descargar Facturas, Boletas y Notas de Crédito/Débito:</p>
+            <pre><code>python run/descargar_comprobantes.py</code></pre>
+            <div class="note">
+                <strong>Nota:</strong> Este script utiliza XML-RPC, es muy rápido y descarga PDF, XML y CDR simultáneamente.
+            </div>
+        </section>
+
+        <section id="descarga-guias">
+            <h2><i class="bi bi-truck"></i> Descarga de Guías</h2>
+            <p>Las guías de remisión requieren un proceso especial que incluye Web Scraping para el PDF:</p>
+            <pre><code>python run/descargar_guias.py</code></pre>
+            <p><strong>El proceso es:</strong></p>
+            <ol>
+                <li>Descarga automática de XML y CDR vía API.</li>
+                <li>Apertura automática de navegador para descargar el PDF "e-Guía AGR".</li>
+            </ol>
+        </section>
+
+        <section id="reparacion">
+            <h2><i class="bi bi-tools"></i> Reparación de Faltantes</h2>
+            <p>Si alguna descarga falló por problemas de conexión, puede ejecutar el script de reparación:</p>
+            <pre><code>python run/reparar_faltantes.py</code></pre>
+            <p>Este script detectará qué documentos no tienen PDF y tratará de descargarlos nuevamente.</p>
+        </section>
+    </main>
+</body>
+</html>

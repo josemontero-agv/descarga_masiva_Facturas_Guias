@@ -1,5 +1,28 @@
 # 📝 Changelog
 
+## [2026-01-28] - Reorganización Modular y Documentación Profesional
+
+### ✅ Mejoras de Arquitectura
+- 🏗️ **Estructura Modular**: Reorganización completa del proyecto en carpetas funcionales:
+  - `core/`: Lógica central (configuración, conexión Odoo).
+  - `modules/`: Lógica de negocio reutilizable por tipo de documento.
+  - `run/`: Puntos de entrada simplificados para ejecución diaria.
+  - `tools/`: Herramientas de mantenimiento y migración.
+  - `archive/`: Preservación de scripts antiguos.
+- ⚙️ **Configuración Centralizada**: Implementación de `core/config.py` para gestionar ambientes (`produccion`/`desarrollo`), rutas de red y constantes globales en un solo lugar.
+- 🔐 **Seguridad**: Creación de `.env.example` para guiar la configuración sin exponer credenciales reales en repositorios.
+
+### 🚀 Optimización de Procesos
+- ⚡ **Descargas Inteligentes**: Implementación de verificación de existencia de archivos en `descargar_comprobantes.py` y `descargar_guias.py`. El sistema ahora salta automáticamente documentos ya descargados, ahorrando tiempo y peticiones a la API.
+- 📦 **Unificación de Guías**: Integración de descarga de XML (vía API) y PDF (vía Selenium) en un único script orquestado: `run/descargar_guias.py`.
+- 🛠️ **Herramienta de Reparación**: Creación de `run/reparar_faltantes.py` para rescate masivo de documentos con fallos de descarga.
+
+### 📖 Documentación
+- 🌐 **Portal HTML**: Creación de un sistema de documentación profesional en `docs/html/` con estilo visual Odoo (Poppins, Bootstrap Icons).
+  - Manual de Usuario actualizado.
+  - Manual del Desarrollador con la nueva arquitectura.
+  - Bitácora de proyecto integrada.
+
 ## [2025-01-XX] - Ejecución Simultánea para Descarga de PDFs de Guías
 
 ### ✅ Mejoras Implementadas

@@ -2,106 +2,76 @@
 
 ## 📂 Estructura de Directorios
 
+El proyecto sigue un diseño modular y orientado a dominios para garantizar la escalabilidad y mantenibilidad.
+
 ```
 descarga_masiva_Facturas_Guias/
 │
-├── 📁 scripts/                    # Scripts principales del proyecto
-│   ├── documentos/                # Scripts para documentos electrónicos
-│   │   ├── 01_descarga_Facturas.py    # Script principal para facturas, boletas, notas
-│   │   └── 09_descarga_guias_xml.py   # Descarga XMLs de guías (funcional)
-│   │
-│   ├── guias_web_scraping/        # Web scraping para PDFs de guías (en desarrollo)
-│   │   ├── README.md
-│   │   └── descargar_pdfs_guias.py
-│   │
-│   └── guias_deprecated/          # Scripts antiguos de guías (NO USAR)
-│       ├── README.md              # Explicación de por qué están deprecated
-│       ├── extraccion_reporte_guia_pdf.py
-│       ├── generar_pdfs_desde_xml.py
-│       └── generar_todos_los_pdfs.py
+├── 📁 core/                       # Lógica central compartida
+│   ├── config.py                  # Configuración central (env, rutas, constantes)
+│   └── odoo_client.py             # Cliente unificado XML-RPC para Odoo
 │
-├── 📁 utils/                      # Utilidades y herramientas auxiliares
-│   ├── analizar_reportes.py      # Analiza reportes PDF disponibles en Odoo
-│   └── Prueba_test_odoo_conexion/
-│       └── conectar_odoo.py       # Script de prueba de conexión a Odoo
+├── 📁 modules/                    # Lógica de negocio (reutilizable)
+│   ├── documentos_module.py       # Procesamiento de Facturas, Boletas, Notas
+│   └── guias_module.py            # Lógica dual XML-RPC + Selenium para Guías
 │
-├── 📁 tests/                      # Scripts de prueba
-│   └── README.md
+├── 📁 run/                        # Scripts de ejecución (Entry Points)
+│   ├── descargar_comprobantes.py  # Descarga diaria de facturas/boletas
+│   ├── descargar_guias.py         # Descarga integral de guías (XML + PDF)
+│   └── reparar_faltantes.py       # Script de rescate para descargas incompletas
 │
-├── 📁 docs/                       # Documentación del proyecto
-│   ├── INSTRUCCIONES_RAPIDAS.md
-│   └── README_EXTRACCION_GUIAS.md
+├── 📁 tools/                      # Herramientas de mantenimiento
+│   ├── migrar_documentos_2025.py  # Consolidación de archivos con Robocopy
+│   └── test_odoo.py               # Prueba rápida de conexión
 │
-├── 📁 config/                     # Archivos de configuración (futuro)
+├── 📁 docs/                       # Documentación técnica
+│   └── html/                      # Portal web de documentación profesional
+│       ├── index.html             # Índice central
+│       ├── manual_usuario.html    # Guía para el usuario final
+│       └── manual_desarrollador.html # Detalles técnicos de la arquitectura
 │
-├── 📁 Prueba_Octubre/            # Datos de prueba y resultados
-│   ├── 01_Facturas/              # Facturas descargadas
-│   ├── 03_Boletas/               # Boletas descargadas
-│   ├── 07_Notas_Credito/         # Notas de crédito
-│   ├── 08_Notas_Debito/          # Notas de débito
-│   ├── 09_Guias_Remision/        # Guías (datos históricos)
-│   └── RESUMEN_EJECUTIVO.md      # Resumen de pruebas
+├── 📁 archive/                    # Preservación de scripts obsoletos/antiguos
 │
-├── 📄 README.md                   # Documentación principal
-├── 📄 ARCHITECTURA.md             # Este archivo
-├── 📄 requirements.txt            # Dependencias Python
-└── 📄 .gitignore                  # Archivos ignorados por Git
+├── 📁 Prueba_Octubre/             # Almacenamiento local para desarrollo
+│
+├── 📄 .env.example                # Plantilla de configuración segura
+├── 📄 requirements.txt            # Dependencias de Python
+└── 📄 README.md                   # Guía de inicio rápido
 ```
 
 ## 🔄 Flujo de Trabajo
 
-### Para Documentos (Facturas, Boletas, Notas)
+### 1. Configuración de Ambiente
+El sistema utiliza archivos `.env.produccion` o `.env.desarrollo` ubicados en la raíz. La carga se centraliza en `core/config.py`, lo que permite que cualquier script acceda a las rutas y credenciales correctas sin código duplicado.
 
-1. **Configuración**: Crear `.env.desarrollo` o `.env.produccion` en la raíz
-2. **Ejecución**: `python scripts/documentos/01_descarga_Facturas.py`
-3. **Resultado**: Documentos descargados en `Prueba_Octubre/`
+### 2. Ejecución Diaria
+Los scripts en la carpeta `run/` son los únicos que el usuario debe ejecutar directamente. Estos importan los módulos necesarios y orquestan el flujo de descarga.
 
-### Para Guías (Futuro - Web Scraping)
+### 3. Optimización de Descargas
+Todos los scripts implementan una **capa de verificación de existencia**. Antes de realizar una petición a la API o abrir el navegador, el sistema verifica si el archivo ya existe en el destino final (`Path.exists()`). Si el archivo está presente, se salta automáticamente, reduciendo drásticamente el tiempo de ejecución en re-procesamientos.
 
-1. **Estrategia**: Web scraping desde la interfaz web de Odoo
-2. **Estado**: En desarrollo
-3. **Scripts antiguos**: En `scripts/guias_deprecated/` (no usar)
+## 🔧 Componentes Clave
 
-## 🔧 Configuración de Rutas
+### core/config.py
+*   Gestiona el mapeo de meses a español.
+*   Define las rutas de red dinámicamente según el año y mes.
+*   Controla el cambio de ambiente mediante la variable `APP_AMBIENTE`.
 
-Todos los scripts buscan el archivo `.env.desarrollo` o `.env.produccion` en la **raíz del proyecto**, independientemente de dónde estén ubicados.
+### modules/guias_module.py
+*   Implementa una estrategia híbrida: descarga el XML oficial vía XML-RPC y utiliza Selenium para generar la representación gráfica (PDF) desde la interfaz de Odoo.
 
-### Ejemplo de búsqueda:
+## 📦 Tipos de Documentos Soporte
 
-```python
-# Desde scripts/documentos/01_descarga_Facturas.py
-project_root = Path(__file__).parent.parent.parent  # Sube 3 niveles
-env_path = project_root / '.env.desarrollo'
-
-# Desde utils/analizar_reportes.py
-project_root = Path(__file__).parent.parent  # Sube 2 niveles
-env_path = project_root / '.env.desarrollo'
-```
-
-## 📦 Tipos de Documentos
-
-| Código | Tipo                       | Estado       | Script                                                 |
-| ------- | -------------------------- | ------------ | ------------------------------------------------------ |
-| 01      | Facturas                   | ✅ Funcional | `scripts/documentos/01_descarga_Facturas.py`         |
-| 03      | Boletas                    | ✅ Funcional | `scripts/documentos/01_descarga_Facturas.py`         |
-| 07      | Notas de Crédito          | ✅ Funcional | `scripts/documentos/01_descarga_Facturas.py`         |
-| 08      | Notas de Débito           | ✅ Funcional | `scripts/documentos/01_descarga_Facturas.py`         |
-| 09      | Guías de Remisión - XMLs | ✅ Funcional | `scripts/documentos/09_descarga_guias_xml.py`        |
-| 09      | Guías de Remisión - PDFs | ✅ Funcional | `scripts/guias_web_scraping/descargar_pdfs_guias.py` |
+| Documento | Tecnología Principal | Módulo | Script de Ejecución |
+|-----------|----------------------|--------|----------------------|
+| Facturas  | XML-RPC              | `documentos_module` | `run/descargar_comprobantes.py` |
+| Boletas   | XML-RPC              | `documentos_module` | `run/descargar_comprobantes.py` |
+| Notas     | XML-RPC              | `documentos_module` | `run/descargar_comprobantes.py` |
+| Guías     | XML-RPC + Selenium   | `guias_module`      | `run/descargar_guias.py` |
 
 ## 🎯 Principios de Diseño
 
-1. **Separación de responsabilidades**: Scripts de documentos vs guías
-2. **Reutilización**: Utilidades compartidas en `utils/`
-3. **Documentación**: Toda la documentación en `docs/`
-4. **Configuración centralizada**: Archivos `.env` en la raíz
-5. **Deprecación clara**: Scripts antiguos marcados como deprecated
-
-## 🔮 Futuro
-
-- [X] Implementar estructura para web scraping de guías
-- [X] Implementar descarga masiva de PDFs de guías vía web scraping (Completado)
-- [X] Crear módulo común para conexión a Odoo
-- [ ] Agregar tests unitarios en `tests/`
-- [ ] Mejorar manejo de errores
-- [ ] Agregar logging estructurado
+1.  **DRY (Don't Repeat Yourself)**: La lógica de conexión y configuración reside en un solo lugar (`core/`).
+2.  **SoC (Separation of Concerns)**: Se separa la ejecución (`run/`) de la lógica de negocio (`modules/`).
+3.  **Seguridad**: Las credenciales sensibles nunca se suben al código; se gestionan mediante variables de entorno protegidas por `.gitignore`.
+4.  **Optimización**: El sistema prioriza la velocidad mediante verificaciones locales antes de cualquier operación de red.
