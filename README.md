@@ -4,7 +4,7 @@ Sistema automatizado para la extracción masiva de documentos fiscales (facturas
 
 ## 📖 Documentación Profesional
 Para guías detalladas, manuales y arquitectura, consulte nuestro portal de documentación:
-👉 **[Portal de Documentación (HTML)](docs/html/index.html)**
+👉 **[Portal de Documentación (HTML)](docs/index.html)**
 
 ---
 
@@ -44,7 +44,7 @@ python run/reparar_faltantes.py
 - `modules/`: Lógica de negocio reutilizable para cada tipo de documento.
 - `run/`: Scripts principales de ejecución diaria.
 - `tools/`: Herramientas de migración (Robocopy) y pruebas de conexión.
-- `docs/html/`: Portal de documentación técnica y de usuario.
+- `docs/`: Portal de documentación técnica y de usuario.
 - `archive/`: Scripts antiguos preservados por seguridad.
 
 ## 📋 Requisitos

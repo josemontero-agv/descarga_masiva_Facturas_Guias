@@ -7,14 +7,30 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">
+                <img src="assets/logo-agrovet.png" alt="Agrovet Logo">
+                <span>Odoo Descarga</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="index.html">Inicio</a></li>
+                <li><a href="manual_usuario.html">Manual Usuario</a></li>
+                <li><a href="manual_desarrollador.html">Desarrollador</a></li>
+                <li><a href="bitacora.html">Bitácora</a></li>
+            </ul>
+        </div>
+    </nav>
     <nav id="toc">
         <h2><i class="bi bi-book"></i> Manual</h2>
         <ul>
             <li><a href="#introduccion">Introducción</a></li>
+            <li><a href="#scripts-diarios">Scripts Diarios</a></li>
             <li><a href="#configuracion">Configuración Inicial</a></li>
             <li><a href="#descarga-comprobantes">Descarga de Facturas</a></li>
             <li><a href="#descarga-guias">Descarga de Guías</a></li>
             <li><a href="#reparacion">Reparación de Faltantes</a></li>
+            <li><a href="#comandos-rapidos">Comandos Rápidos</a></li>
         </ul>
     </nav>
     <main>
@@ -23,6 +39,37 @@
         <section id="introduccion">
             <h2><i class="bi bi-rocket-takeoff"></i> Introducción</h2>
             <p>Este sistema permite descargar de forma masiva comprobantes electrónicos (Facturas, Boletas, Notas) y Guías de Remisión desde Odoo. Los archivos se organizan automáticamente en carpetas por Año, Mes y Tipo de Documento.</p>
+        </section>
+
+        <section id="scripts-diarios">
+            <h2><i class="bi bi-calendar-check"></i> Scripts de Ejecución Diaria</h2>
+            <p>Resumen de los scripts principales que debe ejecutar para la operación diaria:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Qué necesitas</th>
+                        <th>Dónde está</th>
+                        <th>Comando</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Descargar Facturas/Boletas</td>
+                        <td><code>run/descargar_comprobantes.py</code></td>
+                        <td><code>python run/descargar_comprobantes.py</code></td>
+                    </tr>
+                    <tr>
+                        <td>Descargar Guías (Integral)</td>
+                        <td><code>run/descargar_guias.py</code></td>
+                        <td><code>python run/descargar_guias.py</code></td>
+                    </tr>
+                    <tr>
+                        <td>Recuperar archivos faltantes</td>
+                        <td><code>run/reparar_faltantes.py</code></td>
+                        <td><code>python run/reparar_faltantes.py</code></td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
 
         <section id="configuracion">
@@ -64,6 +111,19 @@ ODOO_PASSWORD="tu_password"</code></pre>
             <p>Si alguna descarga falló por problemas de conexión, puede ejecutar el script de reparación:</p>
             <pre><code>python run/reparar_faltantes.py</code></pre>
             <p>Este script detectará qué documentos no tienen PDF y tratará de descargarlos nuevamente.</p>
+        </section>
+
+        <section id="comandos-rapidos">
+            <h2><i class="bi bi-lightning-charge"></i> Comandos Rápidos</h2>
+            <p>Lista de comandos para una ejecución directa:</p>
+            <pre><code># 1. Probar que todo esté bien configurado
+python tools/test_odoo.py
+
+# 2. Descargar facturas del periodo configurado
+python run/descargar_comprobantes.py
+
+# 3. Descargar guías (XML y PDF automáticamente)
+python run/descargar_guias.py</code></pre>
         </section>
     </main>
 </body>

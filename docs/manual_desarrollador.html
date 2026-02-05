@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual del Desarrollador - Descarga Masiva</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">
+                <img src="assets/logo-agrovet.png" alt="Agrovet Logo">
+                <span>Odoo Descarga</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="index.html">Inicio</a></li>
+                <li><a href="manual_usuario.html">Manual Usuario</a></li>
+                <li><a href="manual_desarrollador.html">Desarrollador</a></li>
+                <li><a href="bitacora.html">Bitácora</a></li>
+            </ul>
+        </div>
+    </nav>
+    <nav id="toc">
+        <h2><i class="bi bi-code-slash"></i> Dev Manual</h2>
+        <ul>
+            <li><a href="#arquitectura">Arquitectura</a></li>
+            <li><a href="#core">Núcleo (Core)</a></li>
+            <li><a href="#modulos">Módulos</a></li>
+            <li><a href="#ejecucion">Scripts de Ejecución</a></li>
+            <li><a href="#comparativa">Evolución de Flujo</a></li>
+        </ul>
+    </nav>
+    <main>
+        <h1><i class="bi bi-gear-fill"></i> Manual del Desarrollador</h1>
+
+        <section id="arquitectura">
+            <h2><i class="bi bi-diagram-3"></i> Arquitectura del Proyecto</h2>
+            <p>El proyecto sigue una estructura modular para evitar la duplicación de código y facilitar el mantenimiento.</p>
+            <pre><code>/
+├── core/       # Configuración y clientes base
+├── modules/    # Lógica de negocio por tipo de documento
+├── run/        # Scripts de ejecución principal (Entry points)
+├── tools/      # Utilidades de mantenimiento y migración
+└── docs/       # Documentación técnica y de usuario</code></pre>
+        </section>
+
+        <section id="core">
+            <h2><i class="bi bi-cpu"></i> Núcleo (Core)</h2>
+            <p><strong>core/config.py:</strong> Centraliza la carga de variables de entorno, manejo de fechas y rutas base.</p>
+            <p><strong>core/odoo_client.py:</strong> Encapsula la conexión XML-RPC con Odoo, manejando la autenticación.</p>
+            
+            <h3>🛠️ Herramientas Técnicas</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Qué es</th>
+                        <th>Ubicación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Configuración de Rutas y Meses</td>
+                        <td><code>core/config.py</code></td>
+                    </tr>
+                    <tr>
+                        <td>Conexión a Odoo</td>
+                        <td><code>core/odoo_client.py</code></td>
+                    </tr>
+                    <tr>
+                        <td>Test de comunicación API</td>
+                        <td><code>tools/test_odoo.py</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="modulos">
+            <h2><i class="bi bi-box-seam"></i> Módulos</h2>
+            <p>Los módulos en <code>modules/</code> contienen la lógica pesada que puede ser reutilizada:</p>
+            <ul>
+                <li><code>documentos_module.py</code>: Funciones para procesar adjuntos de account.move.</li>
+                <li><code>guias_module.py</code>: Lógica dual de XML-RPC y automatización con Selenium.</li>
+            </ul>
+        </section>
+
+        <section id="ejecucion">
+            <h2><i class="bi bi-play-circle"></i> Scripts de Ejecución</h2>
+            <p>Ubicados en <code>run/</code>, son scripts ligeros que importan los módulos y ejecutan el flujo de trabajo.</p>
+            <div class="note">
+                <strong>Importante:</strong> Todos los scripts de ejecución añaden automáticamente la raíz del proyecto al <code>sys.path</code> para permitir importaciones absolutas.
+            </div>
+        </section>
+        <section id="comparativa">
+            <h2><i class="bi bi-arrow-left-right"></i> Evolución del Flujo de Trabajo</h2>
+            <p>Comparativa entre el flujo histórico (scripts de archive) y la nueva arquitectura modular.</p>
+            
+            <div class="comparativa-grid">
+                <div class="flujo-antiguo">
+                    <h3>Flujo Histórico (Manual)</h3>
+                    <ul>
+                        <li><strong>Fragmentación:</strong> Scripts separados para Facturas, XML de Guías y Scraping de PDFs.</li>
+                        <li><strong>Concurrencia Manual:</strong> El operador lanzaba múltiples terminales para ganar tiempo.</li>
+                        <li><strong>Riesgo:</strong> Posibles inconsistencias entre el XML descargado y el PDF generado por Selenium.</li>
+                        <li><strong>Mantenimiento:</strong> Código duplicado en múltiples archivos <code>.py</code>.</li>
+                    </ul>
+                </div>
+                <div class="flujo-actual">
+                    <h3>Flujo Modular (Integrado)</h3>
+                    <ul>
+                        <li><strong>Integridad:</strong> Un solo script asegura que cada XML tenga su PDF vinculado.</li>
+                        <li><strong>Concurrencia Segura:</strong> Uso de PIDs para carpetas temporales, permitiendo múltiples terminales sin conflictos.</li>
+                        <li><strong>Auto-Corrección:</strong> El script de Reparación escanea el disco real para encontrar faltantes.</li>
+                        <li><strong>Estandarización:</strong> Configuración centralizada en <code>core/config.py</code>.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

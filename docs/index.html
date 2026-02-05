@@ -6,10 +6,27 @@
     <title>Documentación - Descarga Masiva Odoo</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body style="display: block;">
-    <main style="margin: 0 auto; max-width: 1000px;">
-        <h1 style="text-align: center;"><i class="bi bi-file-earmark-arrow-down-fill"></i> Documentación del Proyecto</h1>
-        <p style="text-align: center; font-size: 1.2rem;">Sistema de Descarga Masiva de Facturas y Guías desde Odoo</p>
+<body>
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="index.html" class="nav-logo">
+                <img src="assets/logo-agrovet.png" alt="Agrovet Logo">
+                <span>Odoo Descarga</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="index.html">Inicio</a></li>
+                <li><a href="manual_usuario.html">Manual Usuario</a></li>
+                <li><a href="manual_desarrollador.html">Desarrollador</a></li>
+                <li><a href="bitacora.html">Bitácora</a></li>
+            </ul>
+        </div>
+    </nav>
+    <main class="home-main">
+        <div class="header-logo">
+            <img src="assets/logo-agrovet.png" alt="Agrovet Market Logo">
+        </div>
+        <h1 class="main-title"><i class="bi bi-file-earmark-arrow-down-fill"></i> Documentación del Proyecto</h1>
+        <p class="main-subtitle">Sistema de Descarga Masiva de Facturas y Guías desde Odoo</p>
         
         <div class="card-grid">
             <a href="manual_usuario.html" class="card">
@@ -34,7 +51,7 @@
             </a>
         </div>
 
-        <section id="resumen" style="margin-top: 40px;">
+        <section id="resumen" class="home-section">
             <h2><i class="bi bi-info-circle"></i> Resumen del Sistema</h2>
             <p>Este sistema permite automatizar la extracción de documentos fiscales de Odoo (Facturas, Boletas, Guías de Remisión) para su almacenamiento y auditoría externa. Combina tecnología <strong>XML-RPC</strong> para datos estructurados y <strong>Web Scraping (Selenium)</strong> para representaciones gráficas (PDFs).</p>
         </section>
