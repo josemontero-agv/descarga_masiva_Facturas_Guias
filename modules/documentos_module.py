@@ -26,24 +26,31 @@ def clasificar_archivo_comprobante(nombre_archivo):
     elif nombre_lower.endswith('.zip'): return 'zip'
     return None
 
-def descargar_comprobante_integral(uid, models, move, base_path_mes):
+def descargar_comprobante_integral(uid, models, move, base_path_mes, nombre_diario=None):
     move_id = move['id']
     tipo_doc = move.get('l10n_latam_document_type_id', [0, ''])[1]
-    # Limpiar tipo_doc para carpeta
+    
+    # Determinar carpeta base por tipo de documento
     tipo_carpeta = 'Otros'
     for k in MAPEO_CARPETAS.keys():
         if k in tipo_doc:
             tipo_carpeta = MAPEO_CARPETAS[k]
             break
     
+    # Si se proporciona un diario, se inserta en la jerarquía de carpetas
+    # Ejemplo: {Mes} / {Diario} / {Tipo_Documento} / {Tipo_Archivo}
+    if nombre_diario:
+        # Limpiar nombre de diario para evitar caracteres inválidos
+        nombre_diario_limpio = "".join([c if c.isalnum() or c in (' ', '-', '_', '.') else '_' for c in nombre_diario]).strip()
+        base_path_doc = base_path_mes / nombre_diario_limpio / tipo_carpeta
+    else:
+        base_path_doc = base_path_mes / tipo_carpeta
+    
     numero_doc = move.get('l10n_latam_document_number', f"DOC_{move_id}")
     nombre_base = numero_doc.replace('/', '-').replace('\\', '-')
     
     adjuntos = buscar_adjuntos_comprobante(uid, models, move_id)
     stats = {'xml': 0, 'pdf': 0, 'cdr': 0}
-    
-    # Pre-verificación: Si ya existen los 3 archivos básicos, podríamos saltar
-    # Pero como no sabemos cuántos XML o CDR hay exactamente, verificamos por cada adjunto
     
     for adj in adjuntos:
         nombre_archivo = adj.get('name', '')
@@ -60,9 +67,8 @@ def descargar_comprobante_integral(uid, models, move, base_path_mes):
                     for filename in z.namelist():
                         tipo_int = clasificar_archivo_comprobante(filename)
                         if tipo_int:
-                            ruta = base_path_mes / tipo_carpeta / tipo_int / f"{nombre_base}.{tipo_int}"
+                            ruta = base_path_doc / tipo_int / f"{nombre_base}.{tipo_int}"
                             if ruta.exists():
-                                # stats[tipo_int] += 1
                                 continue
                                 
                             ruta.parent.mkdir(parents=True, exist_ok=True)
@@ -70,7 +76,7 @@ def descargar_comprobante_integral(uid, models, move, base_path_mes):
                                 f.write(z.read(filename))
                             stats[tipo_int] += 1
             else:
-                ruta = base_path_mes / tipo_carpeta / tipo / f"{nombre_base}.{tipo}"
+                ruta = base_path_doc / tipo / f"{nombre_base}.{tipo}"
                 if ruta.exists():
                     stats[tipo] += 1
                     continue

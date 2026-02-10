@@ -28,6 +28,69 @@ else:
     import fcntl
 
 # ============================================================================
+# SISTEMA DE BLOQUEO ATÓMICO (Para ejecución en paralelo)
+# ============================================================================
+
+def obtener_bloqueo_archivo(ruta_archivo, timeout=2):
+    """
+    Intenta obtener un bloqueo exclusivo sobre un archivo .lock para evitar 
+    que múltiples procesos descarguen el mismo documento simultáneamente.
+    """
+    lock_file_path = Path(str(ruta_archivo) + '.lock')
+    start_time = time.time()
+    
+    while time.time() - start_time < timeout:
+        try:
+            if sys.platform == 'win32':
+                # En Windows, usar msvcrt para bloqueo atómico
+                lock_file = open(lock_file_path, 'xb')
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                # En Linux/Mac, usar fcntl
+                lock_file = open(lock_file_path, 'x')
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return lock_file
+        except (FileExistsError, IOError, OSError):
+            # El archivo ya existe o está bloqueado por otro proceso
+            time.sleep(0.1)
+            continue
+    return None
+
+def liberar_bloqueo_archivo(lock_file, ruta_archivo):
+    """Libera el bloqueo de archivo y elimina el archivo .lock"""
+    if lock_file:
+        try:
+            lock_file.close()
+        except:
+            pass
+    
+    lock_file_path = Path(str(ruta_archivo) + '.lock')
+    try:
+        if lock_file_path.exists():
+            os.remove(lock_file_path)
+    except:
+        pass
+
+def verificar_y_reservar_descarga(ruta_final):
+    """
+    Verificación atómica: si el archivo no existe, intenta reservarlo con un .lock
+    Retorna (puede_descargar, lock_file)
+    """
+    if ruta_final.exists():
+        return False, None
+    
+    lock_file = obtener_bloqueo_archivo(ruta_final)
+    if lock_file is None:
+        return False, None
+    
+    # Verificar de nuevo tras obtener el bloqueo por si acaso terminó justo antes
+    if ruta_final.exists():
+        liberar_bloqueo_archivo(lock_file, ruta_final)
+        return False, None
+        
+    return True, lock_file
+
+# ============================================================================
 # LÓGICA DE XML-RPC (XML / CDR)
 # ============================================================================
 
@@ -100,72 +163,74 @@ def descargar_xml_cdr_guia(uid, models, guia, base_path_guia):
     return stats
 
 # ============================================================================
-# LÓGICA DE SELENIUM (PDF)
+# LÓGICA DE SELENIUM (PDF - MÉTODO URL DIRECTA)
 # ============================================================================
 
 def setup_browser(download_dir):
     chrome_options = Options()
-    chrome_options.add_argument("--headless")  # Opcional
+    chrome_options.add_argument("--headless")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     
     prefs = {
-        "download.default_directory": str(download_dir),
+        "download.default_directory": str(download_dir.absolute()),
         "download.prompt_for_download": False,
         "download.directory_upgrade": True,
         "plugins.always_open_pdf_externally": True
     }
     chrome_options.add_experimental_option("prefs", prefs)
-    
-    # Desactivar verificación SSL para la descarga del driver (solución para redes corporativas)
     os.environ['WDM_SSL_VERIFY'] = '0'
     
-    service = Service(ChromeDriverManager().install())
+    try:
+        service = Service(ChromeDriverManager().install())
+    except:
+        service = Service()
     driver = webdriver.Chrome(service=service, options=chrome_options)
     return driver
 
 def login_odoo_web(driver, url, db, user, password):
     driver.get(f"{url}/web/login")
     try:
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "login")))
-        driver.find_element(By.ID, "login").send_keys(user)
+        wait = WebDriverWait(driver, 15)
+        wait.until(EC.presence_of_element_located((By.ID, "login"))).send_keys(user)
         driver.find_element(By.ID, "password").send_keys(password)
         driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "o_main_navbar")))
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "o_main_navbar")))
         return True
     except:
         return False
 
-def descargar_pdf_guia_selenium(driver, guia_id, numero_doc, final_path, temp_download_dir):
-    # Limpiar carpeta temporal antes
-    for f in glob.glob(str(temp_download_dir / "*")): os.remove(f)
+def descargar_pdf_guia_url_directa(driver, guia_id, numero_doc, final_path, temp_download_dir):
+    """
+    Descarga el PDF navegando directamente a la URL del reporte de Odoo.
+    Esto es mucho más rápido y estable que interactuar con los botones de la interfaz.
+    """
+    # Limpiar carpeta temporal antes de cada descarga
+    for f in glob.glob(str(temp_download_dir / "*")):
+        try:
+            os.remove(f)
+        except:
+            pass
     
-    url_guia = f"{ODOO_URL}/web#id={guia_id}&model=stock.picking&view_type=form"
-    driver.get(url_guia)
+    # Nombre técnico del reporte de guías en Odoo
+    report_name = "agr_shiping_guide.report_edi_gre"
+    url_reporte = f"{ODOO_URL}/report/pdf/{report_name}/{guia_id}"
     
-    try:
-        # Esperar a que cargue el botón de imprimir
-        wait = WebDriverWait(driver, 15)
-        btn_imprimir = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Imprimir')]")))
-        btn_imprimir.click()
-        
-        # Click en e-Guía AGR (ajustar según el texto exacto del botón)
-        btn_eguia = wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(text(), 'e-Guía AGR')]")))
-        btn_eguia.click()
-        
-        # Esperar a la descarga
-        timeout = 20
-        start_time = time.time()
-        while time.time() - start_time < timeout:
-            files = list(temp_download_dir.glob("*.pdf"))
-            if files:
-                # Mover al destino final
+    driver.get(url_reporte)
+    
+    # Esperar a que el archivo aparezca en la carpeta temporal
+    timeout = 15
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        files = list(temp_download_dir.glob("*.pdf"))
+        if files:
+            # Verificar que el archivo no esté vacío y que no sea un archivo temporal de Chrome
+            if os.path.getsize(files[0]) > 1000:
                 nombre_final = numero_doc.replace('/', '-').replace('\\', '-') + ".pdf"
                 shutil.move(str(files[0]), str(final_path / nombre_final))
                 return True
-            time.sleep(1)
-    except Exception as e:
-        print(f"❌ Error descargando PDF para {numero_doc}: {e}")
+        time.sleep(0.5)
     
     return False
