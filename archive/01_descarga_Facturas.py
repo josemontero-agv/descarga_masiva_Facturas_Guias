@@ -75,7 +75,7 @@ if not all([ODOO_URL, ODOO_DB, ODOO_USER, ODOO_PASSWORD]):
 
 # Configuración de fechas - Cambiar aquí el año y mes que deseas descargar
 AÑO = 2026  # ← CAMBIAR AQUÍ EL AÑO
-MES = 1    # ← CAMBIAR AQUÍ EL MES (1-12) - Para ejecutar en paralelo, cambiar el mes
+MES = 2   # ← CAMBIAR AQUÍ EL MES (1-12) - Para ejecutar en paralelo, cambiar el mes
 
 # Calcular fechas automáticamente
 from calendar import monthrange

@@ -1,6 +1,6 @@
 # 📦 Descarga Masiva de Comprobantes Electrónicos desde Odoo
 
-Sistema automatizado para la extracción masiva de documentos fiscales (facturas, boletas, notas y guías) desde Odoo ERP, utilizando una estrategia híbrida de **XML-RPC** y **Web Scraping** con Selenium.
+Sistema automatizado para la extracción masiva de documentos fiscales (facturas, boletas, notas y guías) desde Odoo ERP, utilizando una estrategia de **XML-RPC + Sesión HTTP** (sin dependencia de Selenium para reportes PDF críticos).
 
 ## 📖 Documentación Profesional
 Para guías detalladas, manuales y arquitectura, consulte nuestro portal de documentación:
@@ -26,16 +26,31 @@ python run/descargar_comprobantes.py
 ```
 
 ### 3. Descarga de Guías de Remisión (XML + PDF)
-Proceso integral que primero baja el XML oficial y luego utiliza Selenium para generar el PDF gráfico.
+Proceso integral con enfoque robusto para entornos corporativos restringidos:
+- Opción recomendada (sin Selenium): `run/descargar_guias.py`
+- Opción alternativa: `archive/09_descargar_guias_pdf_v2.py`
 ```bash
 python run/descargar_guias.py
 ```
 
 ### 4. Reparación de Faltantes (Opcional)
-Si hubo fallos en la descarga de PDFs por inestabilidad de red:
+Si hubo fallos en la descarga de PDFs de comprobantes:
+- Opción recomendada (sin Selenium): `run/reparar_faltantes.py`
+- Opción alternativa: `archive/11_descargar_pdfs_faltantes_V2.py`
 ```bash
 python run/reparar_faltantes.py
 ```
+
+---
+
+## 🧠 ¿Por qué XML-RPC + HTTP en lugar de Selenium?
+
+En ambientes con políticas de seguridad corporativa (SSO, EDR, hardening de navegador), Selenium puede fallar con errores como `invalid session id` o cierre inesperado de Chrome.  
+El enfoque nuevo evita esa capa visual:
+
+- **XML-RPC**: lista documentos, obtiene metadatos y estructura de carpetas.
+- **HTTP autenticado**: descarga reportes PDF con `/report/pdf/<report_name>/<id>`.
+- **Beneficio**: menos fricción con restricciones de TI, mayor estabilidad y mejor trazabilidad.
 
 ---
 
@@ -49,7 +64,7 @@ python run/reparar_faltantes.py
 
 ## 📋 Requisitos
 - Python 3.8+
-- Google Chrome (actualizado)
+- Google Chrome (solo si se usan scripts legacy con Selenium)
 - Dependencias: `pip install -r requirements.txt`
 - Acceso a la unidad de red `V:` (para ambiente de producción)
 

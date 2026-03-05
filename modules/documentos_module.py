@@ -46,7 +46,8 @@ def descargar_comprobante_integral(uid, models, move, base_path_mes, nombre_diar
     else:
         base_path_doc = base_path_mes / tipo_carpeta
     
-    numero_doc = move.get('l10n_latam_document_number', f"DOC_{move_id}")
+    # Priorizar campo 'name' para mantener prefijos "F " o "B " y espacios
+    numero_doc = move.get('name') or move.get('l10n_latam_document_number', f"DOC_{move_id}")
     nombre_base = numero_doc.replace('/', '-').replace('\\', '-')
     
     adjuntos = buscar_adjuntos_comprobante(uid, models, move_id)
@@ -67,7 +68,11 @@ def descargar_comprobante_integral(uid, models, move, base_path_mes, nombre_diar
                     for filename in z.namelist():
                         tipo_int = clasificar_archivo_comprobante(filename)
                         if tipo_int:
-                            ruta = base_path_doc / tipo_int / f"{nombre_base}.{tipo_int}"
+                            # Nomenclatura idéntica a archive: Nombre_tipo.ext
+                            ext_real = filename.split('.')[-1]
+                            nombre_final = f"{nombre_base}_{tipo_int}.{ext_real}"
+                            
+                            ruta = base_path_doc / tipo_int / nombre_final
                             if ruta.exists():
                                 continue
                                 
@@ -76,7 +81,11 @@ def descargar_comprobante_integral(uid, models, move, base_path_mes, nombre_diar
                                 f.write(z.read(filename))
                             stats[tipo_int] += 1
             else:
-                ruta = base_path_doc / tipo / f"{nombre_base}.{tipo}"
+                # Nomenclatura idéntica a archive: Nombre_tipo.ext
+                ext_real = nombre_archivo.split('.')[-1]
+                nombre_final = f"{nombre_base}_{tipo}.{ext_real}"
+                
+                ruta = base_path_doc / tipo / nombre_final
                 if ruta.exists():
                     stats[tipo] += 1
                     continue

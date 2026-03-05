@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 # CONFIGURACIÓN DE AMBIENTE
 # ============================================
 # Cambiar entre "desarrollo" y "produccion"
-AMBIENTE = "desarrollo"  # ← CAMBIAR AQUÍ: "desarrollo" o "produccion"
+AMBIENTE = "produccion"  # ← CAMBIAR AQUÍ: "desarrollo" o "produccion"
 
 # Cargar credenciales
 # El archivo .env está en la raíz del proyecto (1 nivel arriba desde utils/)

@@ -49,7 +49,7 @@ def main():
     print(f"{'#'*70}")
 
     año = 2026
-    mes = 1
+    mes = 2
     info = get_periodo_info(año, mes)
     base_path_mes = get_base_path(año, info['nombre_carpeta_mes'])
 
@@ -82,7 +82,8 @@ def main():
     analisis = {'errores': [], 'comprobantes_ok': []}
 
     for idx, doc in enumerate(docs, 1):
-        num_doc = doc.get('l10n_latam_document_number') or doc['name']
+        # Priorizar el campo 'name' para mantener el prefijo "F " o "B " y el espacio
+        num_doc = doc.get('name') or doc.get('l10n_latam_document_number', f"DOC_{doc['id']}")
         nombre_base = num_doc.replace('/', '-').replace('\\', '-')
         
         # Obtener nombre del diario
@@ -98,9 +99,10 @@ def main():
                 tipo_carpeta = v
                 break
         
-        # Verificación rápida: si ya existen PDF y XML en la carpeta del DIARIO, saltamos
-        path_pdf = base_path_mes / nombre_diario_limpio / tipo_carpeta / 'pdf' / f"{nombre_base}.pdf"
-        path_xml = base_path_mes / nombre_diario_limpio / tipo_carpeta / 'xml' / f"{nombre_base}.xml"
+        # Verificación rápida con los nuevos sufijos para total similitud con archive
+        path_pdf = base_path_mes / nombre_diario_limpio / tipo_carpeta / 'pdf' / f"{nombre_base}_pdf.pdf"
+        path_xml = base_path_mes / nombre_diario_limpio / tipo_carpeta / 'xml' / f"{nombre_base}_xml.xml"
+        path_cdr = base_path_mes / nombre_diario_limpio / tipo_carpeta / 'cdr' / f"{nombre_base}_cdr.xml"
         
         if path_pdf.exists() and path_xml.exists():
             if idx % 100 == 0 or idx == len(docs):

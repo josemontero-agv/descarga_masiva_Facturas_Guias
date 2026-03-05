@@ -69,7 +69,7 @@ if not all([ODOO_URL, ODOO_DB, ODOO_USER, ODOO_PASSWORD]):
 
 # Configuración
 AÑO = 2026
-MES = 1
+MES = 2
 
 from calendar import monthrange
 ultimo_dia = monthrange(AÑO, MES)[1]
