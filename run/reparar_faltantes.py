@@ -150,9 +150,10 @@ def descargar_pdf_http(session, report_name, model_id, ruta_final):
     return True, None
 
 def main():
+    t_inicio = datetime.now()
     print(f"\n{'='*70}")
     print("🛠️  HERRAMIENTA DE REPARACIÓN DE FALTANTES (MODO RECURSIVO)")
-    print(f"   Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"   Fecha Inicio: {t_inicio.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*70}")
 
     # CONFIGURACIÓN DE PERIODO (Ajustar según necesidad)
@@ -330,7 +331,11 @@ def main():
         if not descargado:
             print(f"   [{idx}/{len(docs_faltantes)}] ❌ No se pudo rescatar {num_doc}: {ultimo_error}")
 
-    print(f"\n✅ PROCESO DE REPARACIÓN FINALIZADO.")
+    # Calcular duración
+    t_final = datetime.now()
+    duracion = t_final - t_inicio
+
+    print(f"\n✅ PROCESO DE REPARACIÓN FINALIZADO en {duracion}.")
     print(f"   Ubicación: {base_path_mes}")
 
 if __name__ == "__main__":

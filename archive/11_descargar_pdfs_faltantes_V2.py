@@ -90,7 +90,7 @@ nombre_carpeta_mes = f"{MES:02d}_{nombre_mes}"
 if AMBIENTE == "produccion":
     BASE_PATH_RAIZ = Path(rf"V:\{AÑO}\{nombre_carpeta_mes}")
 else:
-    BASE_PATH_RAIZ = project_root / "Prueba_Octubre" / nombre_carpeta_mes
+    BASE_PATH_RAIZ = project_root / "Pruebas_Desarrollo" / nombre_carpeta_mes
     print(f"🔧 MODO DESARROLLO: Guardando en ruta local: {BASE_PATH_RAIZ}")
 
 Path(BASE_PATH_RAIZ).mkdir(parents=True, exist_ok=True)
@@ -493,7 +493,7 @@ def descargar_pdfs_faltantes_v2(comprobantes, uid, models, session, report_names
     return resultados
 
 
-def guardar_log_revision(resultados, report_names):
+def guardar_log_revision(resultados, report_names, duracion=None):
     """Guarda reporte detallado."""
     try:
         carpeta_logs = BASE_PATH_RAIZ / "Resumen de errores"
@@ -510,6 +510,8 @@ def guardar_log_revision(resultados, report_names):
             f.write(f"Mes procesado: {nombre_carpeta_mes}\n")
             f.write(f"Reporte objetivo: {NOMBRE_REPORTE_OBJETIVO}\n")
             f.write(f"Reportes probados: {', '.join(report_names)}\n")
+            if duracion:
+                f.write(f"Duración total: {duracion}\n")
             f.write(f"{'='*70}\n\n")
 
             f.write("RESUMEN EJECUTIVO:\n")
@@ -552,9 +554,10 @@ def guardar_log_revision(resultados, report_names):
 
 
 def main():
+    t_inicio = datetime.now()
     print("\n" + "#" * 70)
     print("# RESCATE PDFs FALTANTES V2 (HTTP + XML-RPC, SIN SELENIUM)")
-    print(f"# Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"# Fecha Inicio: {t_inicio.strftime('%Y-%m-%d %H:%M:%S')}")
     print("#" * 70)
 
     comprobantes = leer_archivo_analisis()
@@ -579,7 +582,12 @@ def main():
         return
 
     resultados = descargar_pdfs_faltantes_v2(comprobantes, uid, models, session, report_names)
-    guardar_log_revision(resultados, report_names)
+    
+    # Calcular duración
+    t_final = datetime.now()
+    duracion = t_final - t_inicio
+    
+    guardar_log_revision(resultados, report_names, duracion=duracion)
 
 
 if __name__ == "__main__":

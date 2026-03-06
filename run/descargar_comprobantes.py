@@ -10,7 +10,7 @@ from core.config import get_periodo_info, get_base_path, ODOO_DB, ODOO_PASSWORD,
 from core.odoo_client import conectar_odoo
 from modules.documentos_module import descargar_comprobante_integral
 
-def guardar_resumen_errores(base_path_mes, año, mes, analisis):
+def guardar_resumen_errores(base_path_mes, año, mes, analisis, duracion=None):
     """Guardar resumen consolidado de problemas en un archivo .txt"""
     try:
         carpeta_logs = base_path_mes / "Resumen de errores"
@@ -26,6 +26,8 @@ def guardar_resumen_errores(base_path_mes, año, mes, analisis):
             f.write(f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write(f"Período: {info['nombre_mes']} {año}\n")
             f.write(f"Ambiente: {AMBIENTE.upper()}\n")
+            if duracion:
+                f.write(f"Duración total: {duracion}\n")
             f.write(f"{'#'*70}\n\n")
             
             f.write(f"❌ Comprobantes con errores:    {len(analisis['errores'])}\n")
@@ -43,9 +45,10 @@ def guardar_resumen_errores(base_path_mes, año, mes, analisis):
         print(f"   ⚠️ No se pudo guardar el resumen de errores: {e}")
 
 def main():
+    t_inicio = datetime.now()
     print(f"\n{'#'*70}")
     print("# DESCARGA DE COMPROBANTES (FACTURAS, BOLETAS, NOTAS)")
-    print(f"# Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"# Fecha Inicio: {t_inicio.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'#'*70}")
 
     año = 2026
@@ -121,10 +124,15 @@ def main():
         if idx % 50 == 0 or idx == len(docs):
             print(f"   Progreso: {idx}/{len(docs)}")
 
+    # Calcular duración
+    t_final = datetime.now()
+    duracion = t_final - t_inicio
+
     # Guardar reporte de errores al final
-    guardar_resumen_errores(base_path_mes, año, mes, analisis)
+    guardar_resumen_errores(base_path_mes, año, mes, analisis, duracion=duracion)
     
-    print(f"\n✅ Proceso completado. Archivos en: {base_path_mes}")
+    print(f"\n✅ Proceso completado en: {duracion}")
+    print(f"Archivos en: {base_path_mes}")
 
 if __name__ == "__main__":
     main()

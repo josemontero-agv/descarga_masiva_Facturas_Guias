@@ -9,7 +9,11 @@ ENV/
 
 /guias_deprecated/
 
-/Prueba_Octubre/
+/Pruebas_Desarrollo/
+
+/docs/wiki/*
+
+
 
 # Archivos Python
 __pycache__/
@@ -19,7 +23,6 @@ __pycache__/
 .Python
 
 # Datos descargados (opcional - descomentar si no quieres subir datos)
-# Prueba_Octubre/
 
 # IDEs
 .vscode/

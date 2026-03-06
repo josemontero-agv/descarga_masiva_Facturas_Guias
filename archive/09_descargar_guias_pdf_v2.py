@@ -90,7 +90,7 @@ NOMBRE_CARPETA_MES = f"{MES:02d}_{NOMBRE_MES}"
 if AMBIENTE == "produccion":
     BASE_PATH_RAIZ = Path(rf"V:\{AÑO}\{NOMBRE_CARPETA_MES}")
 else:
-    BASE_PATH_RAIZ = PROJECT_ROOT / "Prueba_Octubre" / NOMBRE_CARPETA_MES
+    BASE_PATH_RAIZ = PROJECT_ROOT / "Pruebas_Desarrollo" / NOMBRE_CARPETA_MES
 
 BASE_PATH_PDF = BASE_PATH_RAIZ / "09_Guias_Remision" / "pdf"
 LOGS_PATH = BASE_PATH_RAIZ / "Resumen de errores"
@@ -235,7 +235,7 @@ def descargar_pdf_guia(session, report_name, guia_id, destino_pdf):
     return True, None
 
 
-def guardar_resumen(errores, exitosos, saltados, report_name):
+def guardar_resumen(errores, exitosos, saltados, report_name, duracion=None):
     archivo = LOGS_PATH / "GUIAS_PDF_V2_RESUMEN.txt"
     with open(archivo, "w", encoding="utf-8") as f:
         f.write(f"{'#'*70}\n")
@@ -245,6 +245,8 @@ def guardar_resumen(errores, exitosos, saltados, report_name):
         f.write(f"Periodo: {FECHA_INICIO} a {FECHA_FIN}\n")
         f.write(f"Ambiente: {AMBIENTE}\n")
         f.write(f"Reporte tecnico: {report_name}\n")
+        if duracion:
+            f.write(f"Duración total: {duracion}\n")
         f.write(f"{'#'*70}\n\n")
         f.write(f"✅ Descargados: {exitosos}\n")
         f.write(f"⏭️ Saltados: {saltados}\n")
@@ -257,9 +259,10 @@ def guardar_resumen(errores, exitosos, saltados, report_name):
 
 
 def main():
+    t_inicio = datetime.now()
     print("\n" + "#" * 70)
     print("# DESCARGA GUIAS PDF V2 (HTTP + XML-RPC, SIN SELENIUM)")
-    print(f"# Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"# Fecha Inicio: {t_inicio.strftime('%Y-%m-%d %H:%M:%S')}")
     print("#" * 70)
 
     try:
@@ -325,15 +328,20 @@ def main():
             errores.append({"id": guia["id"], "doc": doc, "error": str(e)})
             print(f"[{idx}/{len(guias)}] ❌ {doc} ({str(e)[:80]})")
 
+    # Calcular duración
+    t_final = datetime.now()
+    duracion = t_final - t_inicio
+
     print("\n" + "=" * 70)
     print("✅ PROCESO FINALIZADO")
+    print(f"   - Tiempo total: {duracion}")
     print(f"   - Descargados: {exitosos}")
     print(f"   - Saltados:    {saltados}")
     print(f"   - Errores:     {len(errores)}")
     print(f"   - Carpeta:     {BASE_PATH_PDF}")
     print("=" * 70)
 
-    guardar_resumen(errores, exitosos, saltados, report_name)
+    guardar_resumen(errores, exitosos, saltados, report_name, duracion=duracion)
 
 
 if __name__ == "__main__":

@@ -30,7 +30,7 @@ from modules.guias_module import (
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
-def guardar_resumen_guias(base_path_raiz, analisis):
+def guardar_resumen_guias(base_path_raiz, analisis, duracion=None):
     """Guardar resumen de guías faltantes para reparación"""
     try:
         carpeta_logs = base_path_raiz / "Resumen de errores"
@@ -42,6 +42,8 @@ def guardar_resumen_guias(base_path_raiz, analisis):
             f.write(f"# RESUMEN DE DESCARGA DE GUIAS\n")
             f.write(f"{'#'*70}\n")
             f.write(f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            if duracion:
+                f.write(f"Duración total: {duracion}\n")
             f.write(f"❌ Fallidos/Faltantes: {len(analisis['errores'])}\n")
             f.write(f"✅ Exitosos:           {len(analisis['comprobantes_ok'])}\n")
             f.write(f"{'#'*70}\n\n")
@@ -135,10 +137,11 @@ def descargar_pdf_guia_http(session, report_name, guia_id, ruta_final):
 
 
 def main():
+    t_inicio = datetime.now()
     print(f"\n{'#'*70}")
     print("# PROCESO INTEGRAL DE DESCARGA DE GUÍAS (XML + PDF)")
     print(f"# Ejecución Segura para Terminales Múltiples (PID: {os.getpid()})")
-    print(f"# Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"# Fecha Inicio: {t_inicio.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'#'*70}")
 
     # 1. Configuración de periodo
@@ -233,10 +236,15 @@ def main():
         finally:
             liberar_bloqueo_archivo(lock_file, ruta_pdf)
 
-    guardar_resumen_guias(base_path_raiz, analisis)
+    # Calcular duración
+    t_final = datetime.now()
+    duracion = t_final - t_inicio
+
+    guardar_resumen_guias(base_path_raiz, analisis, duracion=duracion)
 
     print(f"\n{'='*70}")
     print(f"✅ PROCESO FINALIZADO")
+    print(f"   - Tiempo total: {duracion}")
     print(f"   - Procesados:  {stats['descargados']}")
     print(f"   - Con errores: {stats['errores']}")
     print(f"   - Saltados:    {stats['saltados']}")

@@ -110,7 +110,7 @@ if AMBIENTE == "produccion":
             exit(1)
 else:
     # Ruta base de descarga (DESARROLLO)
-    BASE_PATH = project_root / "Prueba_Octubre" / nombre_carpeta_mes
+    BASE_PATH = project_root / "Pruebas_Desarrollo" / nombre_carpeta_mes
     print(f"🔧 MODO DESARROLLO: Guardando en ruta local:")
     print(f"   {BASE_PATH}")
 
@@ -365,7 +365,7 @@ def clasificar_archivo(nombre_archivo):
         return None
 
 
-def descargar_comprobantes(uid, models, comprobantes, tipo_doc_ids):
+def descargar_comprobantes(uid, models, comprobantes, tipo_doc_ids, t_inicio=None):
     """Descargar todos los comprobantes con sus adjuntos"""
     print(f"\n{'='*70}")
     print("📥 DESCARGANDO COMPROBANTES")
@@ -599,12 +599,13 @@ def descargar_comprobantes(uid, models, comprobantes, tipo_doc_ids):
             })
     
     # NUEVO: Mostrar análisis detallado de problemas
-    mostrar_analisis_problemas(analisis_problemas)
+    duracion = (datetime.now() - t_inicio) if t_inicio else None
+    mostrar_analisis_problemas(analisis_problemas, duracion=duracion)
     
     return estadisticas
 
 
-def mostrar_analisis_problemas(analisis):
+def mostrar_analisis_problemas(analisis, duracion=None):
     """Mostrar análisis detallado de problemas encontrados"""
     print(f"\n{'='*70}")
     print("🔍 ANÁLISIS DETALLADO DE PROBLEMAS")
@@ -753,12 +754,12 @@ def mostrar_analisis_problemas(analisis):
         print()
     
     # 7. Generar resumen consolidado
-    guardar_resumen_consolidado(analisis, total_problemas)
+    guardar_resumen_consolidado(analisis, total_problemas, duracion=duracion)
     
     print(f"{'='*70}\n")
 
 
-def guardar_resumen_consolidado(analisis, total_problemas):
+def guardar_resumen_consolidado(analisis, total_problemas, duracion=None):
     """Guardar resumen consolidado de todos los problemas"""
     try:
         # Crear carpeta de logs si no existe
@@ -773,6 +774,8 @@ def guardar_resumen_consolidado(analisis, total_problemas):
             f.write(f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write(f"Período: {FECHA_INICIO} al {FECHA_FIN} ({nombre_mes} {AÑO})\n")
             f.write(f"Ambiente: {AMBIENTE.upper()}\n")
+            if duracion:
+                f.write(f"Duración total: {duracion}\n")
             f.write(f"{'#'*70}\n\n")
             
             # Resumen ejecutivo
@@ -1047,12 +1050,13 @@ def mostrar_resumen(estadisticas):
 
 def main():
     """Función principal"""
+    t_inicio = datetime.now()
     print(f"\n{'#'*70}")
     print("# DESCARGA MASIVA DE COMPROBANTES ELECTRÓNICOS - ODOO")
     print(f"# Ambiente: {AMBIENTE.upper()}")
     print(f"# Período: {FECHA_INICIO} al {FECHA_FIN} ({nombre_mes} {AÑO})")
     print(f"# Destino: {BASE_PATH}")
-    print(f"# Fecha de ejecución: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"# Fecha Inicio: {t_inicio.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'#'*70}")
     
     # 1. Conectar a Odoo
@@ -1077,12 +1081,16 @@ def main():
         return
     
     # 6. Descargar comprobantes
-    estadisticas = descargar_comprobantes(uid, models, comprobantes, tipo_doc_ids)
+    estadisticas = descargar_comprobantes(uid, models, comprobantes, tipo_doc_ids, t_inicio=t_inicio)
     
+    # Calcular duración
+    t_final = datetime.now()
+    duracion = t_final - t_inicio
+
     # 7. Mostrar resumen
     mostrar_resumen(estadisticas)
     
-    print("✅ ¡Proceso completado exitosamente!")
+    print(f"✅ ¡Proceso completado exitosamente en {duracion}!")
 
 
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ PROJECT_ROOT = CORE_DIR.parent
 # ============================================
 # Por defecto buscamos el ambiente en una variable de entorno, si no, usa "produccion"
 # Esto permite cambiarlo fácilmente sin editar el código del core
-AMBIENTE = os.getenv("APP_AMBIENTE", "produccion")
+AMBIENTE = os.getenv("APP_AMBIENTE", "desarrollo")
 
 env_file = f'.env.{AMBIENTE}'
 env_path = PROJECT_ROOT / env_file
@@ -93,7 +93,7 @@ def get_base_path(año, nombre_carpeta_mes):
     if AMBIENTE == "produccion":
         return Path(rf"V:\{año}\{nombre_carpeta_mes}")
     else:
-        return PROJECT_ROOT / "Prueba_Octubre" / nombre_carpeta_mes
+        return PROJECT_ROOT / "Pruebas_Desarrollo" / nombre_carpeta_mes
 
 MAPEO_CARPETAS = {
     'Factura': '01_Facturas',

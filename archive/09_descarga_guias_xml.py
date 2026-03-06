@@ -95,7 +95,7 @@ if AMBIENTE == "produccion":
         print(f"   {BASE_PATH_RAIZ}")
         # No salimos drásticamente para permitir pruebas si el usuario quiere, pero advertimos
 else:
-    BASE_PATH_RAIZ = project_root / "Prueba_Octubre" / nombre_carpeta_mes
+    BASE_PATH_RAIZ = project_root / "Pruebas_Desarrollo" / nombre_carpeta_mes
     print(f"🔧 MODO DESARROLLO: Guardando en ruta local: {BASE_PATH_RAIZ}")
 
 # Ruta específica para Guías
@@ -414,7 +414,7 @@ def buscar_pdf_eguia_agr(adjuntos):
     return None
 
 
-def descargar_guias(uid, models, guias):
+def descargar_guias(uid, models, guias, t_inicio=None):
     """Descargar XMLs y CDRs de las guías (PDFs se descargan con otro script)"""
     print(f"\n{'='*70}")
     print("📥 DESCARGANDO XML/CDR DE GUÍAS DE REMISIÓN")
@@ -585,12 +585,13 @@ def descargar_guias(uid, models, guias):
             print(f"   📊 XMLs: {stats['xml_descargados']} | CDRs: {stats['cdr_descargados']}")
     
     # Mostrar análisis al final
-    mostrar_analisis_problemas(analisis_problemas)
+    duracion = (datetime.now() - t_inicio) if t_inicio else None
+    mostrar_analisis_problemas(analisis_problemas, duracion=duracion)
     
     return stats
 
 
-def guardar_resumen_consolidado(analisis, total_problemas):
+def guardar_resumen_consolidado(analisis, total_problemas, duracion=None):
     """Guardar resumen consolidado de todos los problemas"""
     try:
         # Crear carpeta de logs si no existe en la raíz del mes (compartida con facturas)
@@ -605,6 +606,8 @@ def guardar_resumen_consolidado(analisis, total_problemas):
             f.write(f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write(f"Período: {FECHA_INICIO} al {FECHA_FIN} ({nombre_mes} {AÑO})\n")
             f.write(f"Ambiente: {AMBIENTE.upper()}\n")
+            if duracion:
+                f.write(f"Duración total: {duracion}\n")
             f.write(f"{'#'*70}\n\n")
             
             # Resumen ejecutivo
@@ -684,7 +687,7 @@ def guardar_lista_problemas(tipo, lista):
         print(f"   ⚠️  No se pudo guardar archivo de análisis: {e}")
 
 
-def mostrar_analisis_problemas(analisis):
+def mostrar_analisis_problemas(analisis, duracion=None):
     """Mostrar análisis detallado de problemas encontrados"""
     print(f"\n{'='*70}")
     print("🔍 ANÁLISIS DETALLADO DE PROBLEMAS")
@@ -717,7 +720,7 @@ def mostrar_analisis_problemas(analisis):
         guardar_lista_problemas('errores_descarga', analisis['errores_descarga'])
 
     # Generar resumen consolidado
-    guardar_resumen_consolidado(analisis, total_problemas)
+    guardar_resumen_consolidado(analisis, total_problemas, duracion=duracion)
     print(f"{'='*70}\n")
 
 
@@ -742,10 +745,11 @@ def mostrar_resumen(stats):
 # ============================================================================
 
 def main():
+    t_inicio = datetime.now()
     print(f"\n{'#'*70}")
     print("# DESCARGA DE GUÍAS DE REMISIÓN ELECTRÓNICAS")
     print(f"# Análisis + Descarga con filtros específicos")
-    print(f"# {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"# Fecha Inicio: {t_inicio.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'#'*70}")
     
     uid, models = conectar_odoo()
@@ -766,10 +770,14 @@ def main():
     # PASO 4: Descargar
     stats = descargar_guias(uid, models, guias)
     
+    # Calcular duración
+    t_final = datetime.now()
+    duracion = t_final - t_inicio
+
     # PASO 5: Resumen
     mostrar_resumen(stats)
     
-    print("✅ ¡Completado!")
+    print(f"✅ ¡Completado en {duracion}!")
 
 
 if __name__ == "__main__":
