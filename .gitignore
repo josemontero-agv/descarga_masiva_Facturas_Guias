@@ -40,6 +40,7 @@ Thumbs.db
 # Archivos temporales
 *.tmp
 *.temp
+temp_downloads_*/
 
 .cursorignore
 .cursor

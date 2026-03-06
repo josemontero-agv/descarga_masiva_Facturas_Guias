@@ -2,11 +2,4 @@ python-dotenv
 requests
 reportlab
 PyPDF2
-xmlrpc
-xml.etree.ElementTree
-datetime
-pathlib
-dotenv
-selenium
-webdriver-manager
 urllib3
